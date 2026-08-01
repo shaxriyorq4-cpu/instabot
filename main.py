@@ -8,7 +8,7 @@ from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 
 # Token to'g'ridan-to'g'ri shu yerga yozildi
-BOT_TOKEN = "8939497082:AAF176bWWpTm4NPTiFaJ6W_0KyhemuKrNNs"
+BOT_TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 
 logging.basicConfig(
     level=logging.INFO,
