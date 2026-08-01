@@ -6,10 +6,10 @@ from aiogram.filters import Command
 import instaloader
 import yt_dlp
 
-# Bot tokeningizni qo'shtirnoq ichiga yozing (masalan: "123456789:ABCdefGhIJK...")
-TOKEN = "TOKENINGIZNI_SHU_YERGA_YOZING"
+# Bot tokeningiz
+TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 
-bot = Bot("token=8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag")
+bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 # Instaloader sozlamasi
