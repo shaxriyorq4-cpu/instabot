@@ -7,7 +7,6 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 
-# Token to'g'ridan-to'g'ri shu yerga yozildi
 BOT_TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 
 logging.basicConfig(
@@ -44,27 +43,40 @@ async def process_link_handler(message: types.Message):
     processing_msg = await message.answer("⏳ Media yuklab olinmoqda, iltimos kuting...")
 
     video_url = None
+
+    # 1-usul: SnapSave / RapidAPI yoki alternative Instagram API (AIO Downloader API)
     try:
-        api_url = f"https://tikwm.com/api/?url={url}"
+        api_url = f"https://api.allstagram.com/info?url={url}" # yoki boshqa ochiq API
         async with aiohttp.ClientSession() as session:
-            async with session.get(api_url) as resp:
+            async with session.get(f"https://tikwm.com/api/?url={url}") as resp:
                 res = await resp.json()
                 if res.get("code") == 0:
                     video_url = res["data"].get("play")
     except Exception as e:
-        logging.error(f"API xatosi: {e}")
+        logging.error(f"API 1 xatosi: {e}")
 
+    # 2-usul: Cobalt API (Instagram uchun eng yaxshisi)
     if not video_url:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     "https://co.wuk.sh/api/json",
-                    json={"url": url, "vQuality": "max"},
-                    headers={"Accept": "application/json"}
+                    json={
+                        "url": url,
+                        "vQuality": "max",
+                        "isAudioMuted": False
+                    },
+                    headers={
+                        "Accept": "application/json",
+                        "Content-Type": "application/json"
+                    }
                 ) as resp:
                     res = await resp.json()
                     if res.get("status") == "stream" or res.get("status") == "redirect":
                         video_url = res.get("url")
+                    elif res.get("status") == "picker":
+                        # Agar bir nechta rasm/video bo'lsa birinchisini oladi
+                        video_url = res.get("picker")[0].get("url")
         except Exception as e:
             logging.error(f"Cobalt API xatosi: {e}")
 
@@ -74,12 +86,7 @@ async def process_link_handler(message: types.Message):
         except Exception as e:
             await message.answer(f"Videoni yuborishda xatolik: {e}")
     else:
-        await message.answer("❌ Kechirasiz, videoni yuklab bo'lmadi. Havolani tekshirib qaytadan yuboring.")
-
-    try:
-        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id + 1)
-    except Exception:
-        pass
+        await message.answer("❌ Kechirasiz, bu havoladan videoni olib bo'lmadi. Boshqa havola yuborib ko'ring.")
 
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
