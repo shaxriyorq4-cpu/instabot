@@ -1,5 +1,6 @@
 import os
 import glob
+import time
 import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -12,7 +13,7 @@ TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Instaloader sozlamasi
+# Instaloader sozlamasi (so'rov vaqtini oshiramiz)
 L = instaloader.Instaloader(
     download_videos=True,
     download_video_thumbnails=False,
@@ -20,12 +21,12 @@ L = instaloader.Instaloader(
     download_comments=False,
     save_metadata=False,
     compress_json=False,
-    request_timeout=10
+    request_timeout=20
 )
 
 # Instagram login va parolingiz
 IG_USERNAME = "instadown_v2_bot"
-IG_PASSWORD = "Shaxriyor019283@@"
+IG_PASSWORD = "Instadownv2"
 
 try:
     if IG_USERNAME and IG_USERNAME != "SIZNING_LOGININGIZ":
@@ -56,6 +57,9 @@ async def process_link_handler(message: types.Message):
     os.makedirs(download_dir, exist_ok=True)
 
     try:
+        # Instagram 429 xatoligining oldini olish uchun qisqa pauza
+        time.sleep(2)
+
         if "instagram.com" in url:
             # Story (hikoya) havolasini yuklash
             if "/stories/" in url:
@@ -66,12 +70,18 @@ async def process_link_handler(message: types.Message):
                         username = story_parts[0]
                         
                         profile = instaloader.Profile.from_username(L.context, username)
+                        
+                        # Faol hikoyalarni xavfsiz qidirib topish va yuklash
                         stories = L.get_stories([profile.userid])
+                        found_story = False
                         for story in stories:
-                            items_list = list(story.get_items())
-                            if items_list:
-                                L.download_storyitem(items_list[0], target=download_dir)
-                                break
+                            for item in story.get_items():
+                                L.download_storyitem(item, target=download_dir)
+                                found_story = True
+                                time.sleep(1) # Har bir element orasida kichik tanaffus
+                        
+                        if not found_story:
+                            print("Faol hikoyalar topilmadi yoki ularga kirish cheklangan.")
                 except Exception as story_err:
                     print(f"Story yuklashda xatolik: {story_err}")
             else:
@@ -92,10 +102,13 @@ async def process_link_handler(message: types.Message):
                     await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
                     return
 
+            # Yuklab olingan fayllarni topish
             extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
             for ext in extensions:
-                downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
+                downloaded_files.
+                extend(glob.glob(os.path.join(download_dir, ext)))
         else:
+            # YouTube va boshqa platformalar uchun yt_dlp
             ydl_opts = {
                 'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
                 'format': 'best',
@@ -107,25 +120,41 @@ async def process_link_handler(message: types.Message):
 
         if downloaded_files:
             downloaded_files.sort()
+            
             for file_path in downloaded_files:
                 try:
-                    if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                    if file_path.endswith(('.jpg', '*.jpeg', '*.png', '*.webp')):
                         media_file = types.FSInputFile(file_path)
                         await message.answer_photo(photo=media_file)
-                    elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
+                    elif file_path.endswith(('.mp4', '*.mov', '*.mkv', '*.webm')):
                         media_file = types.FSInputFile(file_path)
                         await message.answer_video(video=media_file)
+                    time.sleep(1) # Telegramga yuborishda ham spamdan qochish uchun pauza
                 except Exception as file_err:
                     print(f"Faylni yuborishda xatolik: {file_err}")
             
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         else:
-            await bot.edit_message_text("❌ Hech qanday media topilmadi yoki 429 xatoligi (Too Many Requests). Biroz kuting.", chat_id=message.chat.id, message_id=processing_msg.message_id)
+            await bot.edit_message_text(
+                "❌ Hech qanday media topilmadi yoki Instagram vaqtinchalik cheklov qo'ydi (429 Too Many Requests). Biroz kuting.", 
+                chat_id=message.chat.id, 
+                message_id=processing_msg.message_id
+            )
 
     except Exception as e:
-        await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id, message_id=processing_msg.message_id)
+        error_str = str(e)
+        print(f"Xatolik: {error_str}")
+        if "429" in error_str:
+            await bot.edit_message_text(
+                "⚠️ Instagram vaqtinchalik cheklov qo'ydi (Too Many Requests). Iltimos, 10-15 daqiqa kuting va qayta urinib ko'ring.", 
+                chat_id=message.chat.id, 
+                message_id=processing_msg.message_id
+            )
+        else:
+            await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id, message_id=processing_msg.message_id)
 
     finally:
+        # Yuklangan vaqtinchalik fayllarni tozalash
         for file_path in glob.glob(os.path.join(download_dir, '*.*')):
             try:
                 os.remove(file_path)
