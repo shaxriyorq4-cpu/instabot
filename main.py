@@ -5,7 +5,6 @@ import re
 import aiohttp
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import FSInputFile
 from aiogram.fsm.storage.memory import MemoryStorage
 
 BOT_TOKEN = "8939497082:AAF17GbWpTo4NpTiFaJ6M_0KyhemuKrN0ns"
@@ -45,7 +44,6 @@ async def process_link_handler(message: types.Message):
 
     video_url = None
     try:
-        # Bepul vaishonchli API orqali video havolasini olamiz
         api_url = f"https://tikwm.com/api/?url={url}"
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url) as resp:
@@ -56,7 +54,6 @@ async def process_link_handler(message: types.Message):
         logging.error(f"API xatosi: {e}")
 
     if not video_url:
-        # Agar bu TikTok yoki boshqa bo'lmasa, Cobalt API orqali urinib ko'ramiz
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -77,6 +74,11 @@ async def process_link_handler(message: types.Message):
             await message.answer(f"Videoni yuborishda xatolik: {e}")
     else:
         await message.answer("❌ Kechirasiz, videoni yuklab bo'lmadi. Havolani tekshirib qaytadan yuboring.")
+
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id + 1)
+    except Exception:
+        pass
 
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
