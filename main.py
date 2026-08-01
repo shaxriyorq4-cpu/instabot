@@ -43,10 +43,10 @@ async def process_link_handler(message: types.Message):
     url = match.group(0)
     processing_msg = await message.answer("⏳ Yuklab olinmoqda, iltimos kuting...")
 
-    media_urls = [] # (url, type)
+    media_items = [] 
     error_message = None
 
-    # 1-usul: Cobalt API (Rasmlar, videolar va karusel postlar uchun eng zo'ri)
+    # 1-usul: Cobalt API orqali urinib ko'rish
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -64,18 +64,18 @@ async def process_link_handler(message: types.Message):
                 res = await resp.json()
                 status = res.get("status")
                 if status in ["stream", "redirect"]:
-                    media_urls.append((res.get("url"), "video"))
+                    media_items.append((res.get("url"), "video"))
                 elif status == "picker":
                     items = res.get("picker")
                     if items:
                         for item in items:
                             m_type = "photo" if item.get("type") == "photo" else "video"
-                            media_urls.append((item.get("url"), m_type))
+                            media_items.append((item.get("url"), m_type))
     except Exception as e:
         logging.error(f"Cobalt API xatosi: {e}")
 
-    # 2-usul: Agar Cobalt ololmasa, yt-dlp orqali (cookies bilan) urinib ko'ramiz
-    if not media_urls:
+    # 2-usul: Agar Cobalt ololmasa, yt-dlp orqali cookies bilan tortish
+    if not media_items:
         try:
             ydl_opts = {
                 'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
@@ -105,26 +105,27 @@ async def process_link_handler(message: types.Message):
             downloaded_files = await asyncio.to_thread(download)
             for f in downloaded_files:
                 m_type = "photo" if f.endswith(('.jpg', '.jpeg', '.png', '.webp')) else "video"
-                media_urls.append((f, m_type, True)) # True - local file
+                media_items.append((f, m_type, True)) 
         except Exception as e:
             error_message = str(e)
             logging.error(f"yt-dlp xatosi: {e}")
 
-    # Natijani yuborish
-    if media_urls:
+    # Natijani foydalanuvchiga yuborish
+    if media_items:
         try:
-            for item in media_urls:
-                if len(item) == 3: # Local file (yt-dlp dan)path, m_type, _ = item
-                    media_file = types.FSInputFile(path)
+            for item in media_items:
+                if len(item) == 3: # Local file (yt-dlp)
+                    file_path, m_type, _ = item
+                    media_file = types.FSInputFile(file_path)
                     if m_type == "photo":
                         await message.answer_photo(photo=media_file)
                     else:
                         await message.answer_video(video=media_file)
                     try:
-                        os.remove(path)
+                        os.remove(file_path)
                     except:
                         pass
-                else: # URL (Cobalt API dan)
+                else: # URL (Cobalt)
                     m_url, m_type = item
                     if m_type == "photo":
                         await message.answer_photo(photo=m_url)
