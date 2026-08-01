@@ -121,7 +121,8 @@ async def process_link_handler(message: types.Message):
 
     if downloaded_files:
         try:
-            for file_path in downloaded_files:if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+            for file_path in downloaded_files:
+                if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
                     media_file = types.FSInputFile(file_path)
                     await message.answer_photo(photo=media_file)
                 elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
