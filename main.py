@@ -6,7 +6,7 @@ from aiogram.filters import Command
 import instaloader
 import yt_dlp
 
-# Bot tokeningizni shu yerga yozing
+# Bot tokeningizni qo'shtirnoq ichiga yozing (masalan: "123456789:ABCdefGhIJK...")
 TOKEN = "TOKENINGIZNI_SHU_YERGA_YOZING"
 
 bot = Bot(token=TOKEN)
@@ -37,15 +37,11 @@ async def process_link_handler(message: types.Message):
     processing_msg = await message.answer("⏳ Yuklab olinmoqda, biroz kuting...")
     
     downloaded_files = []
-    
-    # Har safar toza papka bilan ishlash uchun vaqtinchalik nom
     download_dir = f"downloads_{message.from_user.id}"
-    os.makedirs(download_dir, dirname_exists := True)
+    os.makedirs(download_dir, exist_ok=True)
 
     try:
-        # Instagram havolasi ekanligini tekshirish
         if "instagram.com" in url:
-            # Shortcode ni ajratib olish
             shortcode = None
             if "/p/" in url:
                 shortcode = url.split("/p/")[1].split("/")[0]
@@ -56,11 +52,8 @@ async def process_link_handler(message: types.Message):
 
             if shortcode:
                 post = instaloader.Post.from_shortcode(L.context, shortcode)
-                
-                # Papkaga yuklab olish
                 L.download_post(post, target=download_dir)
                 
-                # Yuklangan fayllarni yig'ish (rasm va videolar)
                 extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
                 for ext in extensions:
                     downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
@@ -68,8 +61,6 @@ async def process_link_handler(message: types.Message):
                 await message.answer("❌ Instagram havolasidan postni aniqlab bo'lmadi.")
                 await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
                 return
-
-        # YouTube yoki boshqa qo'llab-quvvatlanadigan havolalar
         else:
             ydl_opts = {
                 'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
@@ -80,9 +71,7 @@ async def process_link_handler(message: types.Message):
                 filename = ydl.prepare_filename(info)
                 downloaded_files.append(filename)
 
-        # Yuklangan fayllarni foydalanuvchiga yuborish
         if downloaded_files:
-            # Fayllarni tartiblash (ketma-ketligi buzilmasligi uchun)
             downloaded_files.sort()
             
             for file_path in downloaded_files:
@@ -101,10 +90,9 @@ async def process_link_handler(message: types.Message):
             await bot.edit_message_text("❌ Hech qanday media topilmadi yoki yuklab bo'lmadi.", chat_id=message.chat.id, message_id=processing_msg.message_id)
 
     except Exception as e:
-        await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id,message_id=processing_msg.message_id)
+        await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id, message_id=processing_msg.message_id)
 
     finally:
-        # Serverda joy to'lib qolmasligi uchun yuklangan vaqtincha papkani tozalash
         for file_path in glob.glob(os.path.join(download_dir, '*.*')):
             try:
                 os.remove(file_path)
