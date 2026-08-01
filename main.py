@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import re
-import aiohttp
+import instaloader
 import yt_dlp
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -24,11 +24,27 @@ URL_REGEX = re.compile(
     r'http[s]?://(?:[a-zA-Z0-9$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
 )
 
+L = instaloader.Instaloader(
+    download_videos=True,
+    download_video_thumbnails=False,
+    download_geotags=False,
+    download_comments=False,
+    save_metadata=False,
+    compress_json=False
+)
+
+# Cookies fayli orqali instaloader'ga kirish
+try:
+    if os.path.exists("cookies.txt"):
+        L.load_session_from_file("", "cookies.txt")
+except Exception as e:
+    logging.error(f"Instaloader cookies yuklashda xato: {e}")
+
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
     await message.answer(
         "Salom! 👋\n\n"
-        "Instagram'dan istalgan video, rasm, reels, story va postlarni yuboring!\n\n"
+        "Instagram'dan istalgan video, rasm, reels, story va karusel postlarni yuboring!\n\n"
         "🚀 Havolani yuboring!"
     )
 
@@ -43,39 +59,39 @@ async def process_link_handler(message: types.Message):
     url = match.group(0)
     processing_msg = await message.answer("⏳ Yuklab olinmoqda, iltimos kuting...")
 
-    media_items = [] 
+    downloaded_files = []
     error_message = None
 
-    # 1-usul: Cobalt API orqali urinib ko'rish
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://co.wuk.sh/api/json",
-                json={
-                    "url": url,
-                    "vQuality": "max",
-                    "isAudioMuted": False,
-                },
-                headers={
-                    "Accept": "application/json",
-                    "Content-Type": "application/json"
-                }
-            ) as resp:
-                res = await resp.json()
-                status = res.get("status")
-                if status in ["stream", "redirect"]:
-                    media_items.append((res.get("url"), "video"))
-                elif status == "picker":
-                    items = res.get("picker")
-                    if items:
-                        for item in items:
-                            m_type = "photo" if item.get("type") == "photo" else "video"
-                            media_items.append((item.get("url"), m_type))
-    except Exception as e:
-        logging.error(f"Cobalt API xatosi: {e}")
+        def download_with_instaloader():
+            files = []
+            # Shortcode ni havoladan ajratib olish (/p/SHORTCODE/ yoki /reel/SHORTCODE/)
+            shortcode_match = re.search(r'/(?:p|reel|tv)/([^/?#&]+)', url)
+            if not shortcode_match:
+                return []
+            
+            shortcode = shortcode_match.group(1)
+            post = instaloader.Post.from_shortcode(L.context, shortcode)
+            
+            # Vaqtinchalik papka
+            target_dir = os.path.join(DOWNLOAD_DIR, shortcode)
+            os.makedirs(target_dir, exist_ok=True)
+            
+            L.download_post(post, target=target_dir)
+            
+            # Yuklangan fayllarni yig'ish
+            for f in os.listdir(target_dir):
+                if f.endswith(('.jpg', '.jpeg', '.png', '.mp4')):
+                    files.append(os.path.join(target_dir, f))
+            return files
 
-    # 2-usul: Agar Cobalt ololmasa, yt-dlp orqali cookies bilan tortish
-    if not media_items:
+        downloaded_files = await asyncio.to_thread(download_with_instaloader)
+    except Exception as e:
+        error_message = str(e)
+        logging.error(f"Instaloader xatosi: {e}")
+
+    # Agar instaloader ololmasa, yt-dlp zaxira sifatida urinib ko'radi
+    if not downloaded_files:
         try:
             ydl_opts = {
                 'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
@@ -83,8 +99,7 @@ async def process_link_handler(message: types.Message):
                 'cookiefile': 'cookies.txt',
                 'ignoreerrors': True,
             }
-            
-            def download():
+            def download_yt():
                 files = []
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=True)
@@ -94,43 +109,31 @@ async def process_link_handler(message: types.Message):
                         for entry in info['entries']:
                             if entry:
                                 f = ydl.prepare_filename(entry)
-                                if os.path.exists(f):
-                                    files.append(f)
+                                if os.path.exists(f): files.append(f)
                     else:
                         f = ydl.prepare_filename(info)
-                        if os.path.exists(f):
-                            files.append(f)
+                        if os.path.exists(f): files.append(f)
                 return files
-
-            downloaded_files = await asyncio.to_thread(download)
-            for f in downloaded_files:
-                m_type = "photo" if f.endswith(('.jpg', '.jpeg', '.png', '.webp')) else "video"
-                media_items.append((f, m_type, True)) 
+            downloaded_files = await asyncio.to_thread(download_yt)
         except Exception as e:
-            error_message = str(e)
-            logging.error(f"yt-dlp xatosi: {e}")
+            if not error_message:
+                error_message = str(e)
 
-    # Natijani foydalanuvchiga yuborish
-    if media_items:
+    if downloaded_files:
         try:
-            for item in media_items:
-                if len(item) == 3: # Local file (yt-dlp)
-                    file_path, m_type, _ = item
+            for file_path in downloaded_files:if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
                     media_file = types.FSInputFile(file_path)
-                    if m_type == "photo":
-                        await message.answer_photo(photo=media_file)
-                    else:
-                        await message.answer_video(video=media_file)
-                    try:
-                        os.remove(file_path)
-                    except:
-                        pass
-                else: # URL (Cobalt)
-                    m_url, m_type = item
-                    if m_type == "photo":
-                        await message.answer_photo(photo=m_url)
-                    else:
-                        await message.answer_video(video=m_url)
+                    await message.answer_photo(photo=media_file)
+                elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
+                    media_file = types.FSInputFile(file_path)
+                    await message.answer_video(video=media_file)
+            
+            # Tozalash
+            for file_path in downloaded_files:
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
         except Exception as e:
             await message.answer(f"❌ Faylni yuborishda xatolik: {e}")
     else:
