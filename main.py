@@ -22,9 +22,23 @@ L = instaloader.Instaloader(
     compress_json=False
 )
 
+# Feyk Instagram akkaunt ma'lumotlari
+IG_USERNAME = "instadown_v2_bot"
+IG_PASSWORD = "Shaxriyor019283@@"
+
+try:
+    if IG_USERNAME:
+        try:
+            L.load_session_from_file(IG_USERNAME)
+        except Exception:
+            L.login(IG_USERNAME, IG_PASSWORD)
+            L.save_session_to_file()
+except Exception as e:
+    print(f"Instagram login xatosi: {e}")
+
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Menga Instagram yoki YouTube havolasini yuboring, men uni yuklab beraman.")
+    await message.answer("Salom! Menga Instagram (post, reel, story, cheklangan kontent) yoki YouTube havolasini yuboring, men uni yuklab beraman.")
 
 @dp.message()
 async def process_link_handler(message: types.Message):
@@ -42,25 +56,41 @@ async def process_link_handler(message: types.Message):
 
     try:
         if "instagram.com" in url:
-            shortcode = None
-            if "/p/" in url:
-                shortcode = url.split("/p/")[1].split("/")[0]
-            elif "/reel/" in url:
-                shortcode = url.split("/reel/")[1].split("/")[0]
-            elif "/reels/" in url:
-                shortcode = url.split("/reels/")[1].split("/")[0]
-
-            if shortcode:
-                post = instaloader.Post.from_shortcode(L.context, shortcode)
-                L.download_post(post, target=download_dir)
-                
-                extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
-                for ext in extensions:
-                    downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
+            # Story (hikoya) havolasini yuklash
+            if "/stories/" in url:
+                try:
+                    parts = url.split("/stories/")
+                    if len(parts) > 1:
+                        story_parts = parts[1].split("/")
+                        username = story_parts[0]
+                        
+                        profile = instaloader.Profile.from_username(L.context, username)
+                        for story in L.get_stories([profile.userid]):
+                            for item in story.get_items():
+                                L.download_storyitem(item, target=download_dir)
+                except Exception as story_err:
+                    print(f"Story yuklashda xatolik: {story_err}")
             else:
-                await message.answer("❌ Instagram havolasidan postni aniqlab bo'lmadi.")
-                await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
-                return
+                # Oddiy post, reel va cheklangan kontentlar uchun
+                shortcode = None
+                if "/p/" in url:
+                    shortcode = url.split("/p/")[1].split("/")[0]
+                elif "/reel/" in url:
+                    shortcode = url.split("/reel/")[1].split("/")[0]
+                elif "/reels/" in url:
+                    shortcode = url.split("/reels/")[1].split("/")[0]
+
+                if shortcode:
+                    post = instaloader.Post.from_shortcode(L.context, shortcode)
+                    L.download_post(post, target=download_dir)
+                else:
+                    await message.answer("❌ Instagram havolasidan postni aniqlab bo'lmadi.")
+                    await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
+                    return
+
+            extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
+            for ext in extensions:
+                downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
         else:
             ydl_opts = {
                 'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
@@ -79,7 +109,7 @@ async def process_link_handler(message: types.Message):
                     if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
                         media_file = types.FSInputFile(file_path)
                         await message.answer_photo(photo=media_file)
-                    elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
+                    elif file_path.endswith(('.mp4', '.mov', '.mkv', '*.webm')):
                         media_file = types.FSInputFile(file_path)
                         await message.answer_video(video=media_file)
                 except Exception as file_err:
@@ -87,7 +117,7 @@ async def process_link_handler(message: types.Message):
             
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         else:
-            await bot.edit_message_text("❌ Hech qanday media topilmadi yoki yuklab bo'lmadi.", chat_id=message.chat.id, message_id=processing_msg.message_id)
+            await bot.edit_message_text("❌ Hech qanday media topilmadi yoki bu kontent uchun login talab qilinadi.", chat_id=message.chat.id, message_id=processing_msg.message_id)
 
     except Exception as e:
         await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id, message_id=processing_msg.message_id)
