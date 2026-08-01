@@ -7,7 +7,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 
-BOT_TOKEN = "8939497082:AAF17GbWpTo4NpTiFaJ6M_0KyhemuKrN0ns"
+# BotFather'dan olingan to'g'ri token
+BOT_TOKEN = "8939497082:AAF176bWWpTm4NPTiFaJ6W_0KyhemuKrNNs"
 
 logging.basicConfig(
     level=logging.INFO,
