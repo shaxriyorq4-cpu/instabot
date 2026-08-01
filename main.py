@@ -58,15 +58,15 @@ async def process_link_handler(message: types.Message):
         file_path = await asyncio.to_thread(download)
     except Exception as e:
         logging.error(f"yt-dlp xatosi: {e}")
+        await message.answer(f"❌ Xatolik tafsiloti: {e}")
 
     if file_path and os.path.exists(file_path):
         try:
-            video_file = FSInputFile(file_path) if 'FSInputFile' in globals() else types.FSInputFile(file_path)
+            video_file = types.FSInputFile(file_path)
             await message.answer_video(video=video_file, caption="✅ Marhamat, video!")
         except Exception as e:
             await message.answer(f"Videoni yuborishda xatolik: {e}")
         
-        # Faylni yuborgandan keyin o'chirib tashlash
         try:
             os.remove(file_path)
         except Exception:
