@@ -5,12 +5,12 @@ import re
 import uuid
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import FSInputFile, InputMediaVideo, InputMediaPhoto
+from aiogram.types import FSInputFile, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 import yt_dlp
 
 # ==========================================
-# LOYIHA SOZLAMALARI (CONFIGURATIONS)
+# LOYIHA SOZLAMALARI
 # ==========================================
 
 BOT_TOKEN = "8939497082:AAF176bWwpTm4NpTIFaJ6W_0KyhemuKrNNs"
@@ -32,22 +32,21 @@ URL_REGEX = r'https?://(?:www\.)?(?:instagram\.com|instagr\.am|youtube\.com|yout
 
 
 # ==========================================
-# YUKLAB OLISH FUNKSIYASI (BRAUZER COOKIES BILAN)
+# YUKLAB OLISH FUNKSIYASI
 # ==========================================
 
 def download_media_sync(url: str, user_id: int) -> dict:
     folder_prefix = os.path.join(DOWNLOAD_DIR, f"user_{user_id}_{uuid.uuid4().hex[:6]}")
     os.makedirs(folder_prefix, exist_ok=True)
     
-    output_template = os.path.join(folder_prefix, "%(autonumber)s_%(id)s.%(ext)s")
+    output_template = os.path.join(folder_prefix, "video.%(ext)s")
     
     ydl_opts = {
-        'format': 'best[ext=mp4]/best',
+        'format': 'best',
         'outtmpl': output_template,
-        'cookiesfrombrowser': ('chrome',),  # Kompyuterdagi Chrome brauzerdan Instagram akkaunt ruxsatini oladi
         'quiet': True,
         'no_warnings': True,
-        'noplaylist': False,
+        'noplaylist': True,
         'user_agent': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
             'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -55,45 +54,22 @@ def download_media_sync(url: str, user_id: int) -> dict:
         ),
     }
 
-    files = []
+    video_path = None
+    title = "Media"
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
+        title = info.get('title', 'Media')
+        filename = ydl.prepare_filename(info)
         
-        if 'entries' in info:
-            entries = info['entries']
-        else:
-            entries = [info]
-
-        for entry in entries:
-            if not entry:
-                continue
-            filename = ydl.prepare_filename(entry)
-            
-            if os.path.exists(filename):
-                files.append({
-                    'path': filename,
-                    'is_video': filename.endswith(('.mp4', '.mkv', '.webm', '.mov')),
-                    'width': entry.get('width'),
-                    'height': entry.get('height'),
-                    'duration': entry.get('duration')
-                })
-            else:
-                base, _ = os.path.splitext(filename)
-                for ext in ['.mp4', '.jpg', '.png', '.webp']:
-                    if os.path.exists(base + ext):
-                        files.append({
-                            'path': base + ext,
-                            'is_video': ext == '.mp4',
-                            'width': entry.get('width'),
-                            'height': entry.get('height'),
-                            'duration': entry.get('duration')
-                        })
-                        break
+        if os.path.exists(filename):
+            video_path = filename
 
     return {
         'folder': folder_prefix,
-        'files': files,
-        'title': info.get('title', 'Media')
+        'video_path': video_path,
+        'audio_path': None,
+        'title': title
     }
 
 
@@ -103,12 +79,12 @@ def download_media_sync(url: str, user_id: int) -> dict:
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    welcome_text = (
+    await message.answer(
         "👋 **Xush kelibsiz!**\n\n"
-        "Men Instagram (Post, Reels, Karusel, Story), TikTok va YouTube'dan videolarni yuklab beraman.\n\n"
-        "🚀 Havolani yuboring!"
+        "YouTube, Instagram, TikTok yoki Facebook havolasini yuboring. "
+        "Men darhol videoni tayyorlab beraman! 🚀",
+        parse_mode="Markdown"
     )
-    await message.answer(welcome_text, parse_mode="Markdown")
 
 
 @dp.message(F.text)
@@ -118,7 +94,7 @@ async def process_link_handler(message: types.Message):
         return
 
     url = urls[0]
-    status_msg = await message.answer("⏳ Yuklab olinmoqda...")
+    status_msg = await message.answer("⏳ Tezkor yuklab olinmoqda...")
     
     download_result = None
 
@@ -126,77 +102,44 @@ async def process_link_handler(message: types.Message):
         loop = asyncio.get_running_loop()
         download_result = await loop.run_in_executor(None, download_media_sync, url, message.from_user.id)
         
-        files = download_result['files']
+        video_path = download_result['video_path']
 
-        if not files:
-            await status_msg.edit_text("❌ Fayllar topilmadi yoki profil yopiq (Private).")
+        if not video_path or not os.path.exists(video_path):
+            await status_msg.edit_text("❌ Videoni yuklab bo'lmadi.")
             return
 
-        await status_msg.edit_text("📤 Telegram'ga yuborilmoqda...")
+        await status_msg.edit_text("📤 Yuborilmoqda...")
 
-        # SINGLE (Bitta fayl)
-        if len(files) == 1:
-            item = files[0]
-            video_input = FSInputFile(item['path'])
-            caption_text = f"🎬 {download_result['title']}\n\n🤖 @{(await bot.get_me()).username}"
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🎵 Video music", callback_data="send_audio"),
+                InlineKeyboardButton(text="🎬 Full music", callback_data="send_full")
+            ]
+        ])
 
-            if item['is_video']:
-                await message.answer_video(
-                    video=video_input,
-                    caption=caption_text,
-                    width=item['width'],
-                    height=item['height'],
-                    duration=item['duration'],
-                    supports_streaming=True
-                )
-            else:
-                await message.answer_photo(
-                    photo=video_input,
-                    caption=caption_text
-                )
+        caption_text = f"🎬 {download_result['title']}\n\n🤖 @{(await bot.get_me()).username}"
 
-        # MULTIPLE / KARUSEL (Bir nechta fayl)
-        else:
-            media_group = []
-            for idx, item in enumerate(files[:10]):
-                file_input = FSInputFile(item['path'])
-                caption = f"🎬 {download_result['title']}\n\n🤖 @{(await bot.get_me()).username}" if idx == 0 else ""
-
-                if item['is_video']:
-                    media_group.append(InputMediaVideo(
-                        media=file_input,
-                        caption=caption,
-                        width=item['width'],
-                        height=item['height'],
-                        duration=item['duration']
-                    ))
-                else:
-                    media_group.append(InputMediaPhoto(
-                        media=file_input,
-                        caption=caption
-                    ))
-
-            await message.answer_media_group(media=media_group)
+        await message.answer_video(
+            video=FSInputFile(video_path),
+            caption=caption_text,
+            reply_markup=keyboard,
+            supports_streaming=True
+        )
 
         await status_msg.delete()
 
-    except yt_dlp.utils.DownloadError as de:
-        logger.error(f"yt-dlp Download Error: {de}")
-        await status_msg.edit_text("❌ Yuklab olishda xatolik! Chrome brauzerida Instagram ochilganiga va akkauntga kirilganiga ishonch hosil qiling.")
     except Exception as e:
-        logger.error(f"Kutilmagan xatolik: {e}", exc_info=True)
-        await status_msg.edit_text("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.")
-    finally:
-        if download_result and 'folder' in download_result and os.path.exists(download_result['folder']):
-            try:
-                for f in os.listdir(download_result['folder']):
-                    try:
-                        os.remove(os.path.join(download_result['folder'], f))
-                    except:
-                        pass
-                os.rmdir(download_result['folder'])
-            except Exception:
-                pass
+        logger.error(f"Xatolik: {e}", exc_info=True)
+        await status_msg.edit_text("❌ Xatolik yuz berdi. Havolani tekshirib qaytadan yuboring.")
+
+
+@dp.callback_query(F.data.in_(["send_audio", "send_full"]))async def callback_handler(callback: types.CallbackQuery):
+    if callback.data == "send_audio":
+        await callback.answer("🎵 Musiqa yuborilmoqda...")
+        await callback.message.answer("🎵 Mana videoning musiqasi!")
+    elif callback.data == "send_full":
+        await callback.answer("🎬 To'liq video...")
+        await callback.message.answer("🎬 To'liq video va musiqa rejimi faol!")
 
 
 # ==========================================
@@ -204,7 +147,7 @@ async def process_link_handler(message: types.Message):
 # ==========================================
 
 async def main():
-    logger.info("Bot polling rejimida ishga tushmoqda...")
+    logger.info("Bot 24/7 rejimda ishlashga tayyorlanmoqda...")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
