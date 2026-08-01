@@ -7,13 +7,11 @@ from aiogram.filters import Command
 import instaloader
 import yt_dlp
 
-# Bot tokeningiz
 TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Instaloader sozlamasi
 L = instaloader.Instaloader(
     download_videos=True,
     download_video_thumbnails=False,
@@ -24,9 +22,8 @@ L = instaloader.Instaloader(
     request_timeout=20
 )
 
-# Instagram login va parolingiz
 IG_USERNAME = "instadown_v2_bot"
-IG_PASSWORD = "instadownv2"
+IG_PASSWORD = "Instadownv2"
 
 try:
     if IG_USERNAME and IG_USERNAME != "SIZNING_LOGININGIZ":
@@ -103,7 +100,12 @@ async def process_link_handler(message: types.Message):
         else:
             ydl_opts = {
                 'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
-                'format': 'best',append(filename)
+                'format': 'best',
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info)
+                downloaded_files.append(filename)
 
         if downloaded_files:
             downloaded_files.sort()
@@ -154,10 +156,5 @@ async def process_link_handler(message: types.Message):
 async def main():
     await dp.start_polling(bot)
 
-if name == '__main__':
+if __name__ == '__main__':
     asyncio.run(main())
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                filename = ydl.prepare_filename(info)
-                downloaded_files.
