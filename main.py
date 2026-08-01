@@ -13,7 +13,7 @@ TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Instaloader sozlamasi (so'rov vaqtini oshiramiz)
+# Instaloader sozlamasi
 L = instaloader.Instaloader(
     download_videos=True,
     download_video_thumbnails=False,
@@ -26,7 +26,7 @@ L = instaloader.Instaloader(
 
 # Instagram login va parolingiz
 IG_USERNAME = "instadown_v2_bot"
-IG_PASSWORD = "Instadownv2"
+IG_PASSWORD = "instadownv2"
 
 try:
     if IG_USERNAME and IG_USERNAME != "SIZNING_LOGININGIZ":
@@ -57,11 +57,9 @@ async def process_link_handler(message: types.Message):
     os.makedirs(download_dir, exist_ok=True)
 
     try:
-        # Instagram 429 xatoligining oldini olish uchun qisqa pauza
         time.sleep(2)
 
         if "instagram.com" in url:
-            # Story (hikoya) havolasini yuklash
             if "/stories/" in url:
                 try:
                     parts = url.split("/stories/")
@@ -70,22 +68,19 @@ async def process_link_handler(message: types.Message):
                         username = story_parts[0]
                         
                         profile = instaloader.Profile.from_username(L.context, username)
-                        
-                        # Faol hikoyalarni xavfsiz qidirib topish va yuklash
                         stories = L.get_stories([profile.userid])
                         found_story = False
                         for story in stories:
                             for item in story.get_items():
                                 L.download_storyitem(item, target=download_dir)
                                 found_story = True
-                                time.sleep(1) # Har bir element orasida kichik tanaffus
+                                time.sleep(1)
                         
                         if not found_story:
                             print("Faol hikoyalar topilmadi yoki ularga kirish cheklangan.")
                 except Exception as story_err:
                     print(f"Story yuklashda xatolik: {story_err}")
             else:
-                # Oddiy post, reel va cheklangan kontentlar uchun
                 shortcode = None
                 if "/p/" in url:
                     shortcode = url.split("/p/")[1].split("/")[0]
@@ -102,21 +97,13 @@ async def process_link_handler(message: types.Message):
                     await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
                     return
 
-            # Yuklab olingan fayllarni topish
             extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
             for ext in extensions:
-                downloaded_files.
-                extend(glob.glob(os.path.join(download_dir, ext)))
+                downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
         else:
-            # YouTube va boshqa platformalar uchun yt_dlp
             ydl_opts = {
                 'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
-                'format': 'best',
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                filename = ydl.prepare_filename(info)
-                downloaded_files.append(filename)
+                'format': 'best',append(filename)
 
         if downloaded_files:
             downloaded_files.sort()
@@ -129,7 +116,7 @@ async def process_link_handler(message: types.Message):
                     elif file_path.endswith(('.mp4', '*.mov', '*.mkv', '*.webm')):
                         media_file = types.FSInputFile(file_path)
                         await message.answer_video(video=media_file)
-                    time.sleep(1) # Telegramga yuborishda ham spamdan qochish uchun pauza
+                    time.sleep(1)
                 except Exception as file_err:
                     print(f"Faylni yuborishda xatolik: {file_err}")
             
@@ -154,7 +141,6 @@ async def process_link_handler(message: types.Message):
             await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id, message_id=processing_msg.message_id)
 
     finally:
-        # Yuklangan vaqtinchalik fayllarni tozalash
         for file_path in glob.glob(os.path.join(download_dir, '*.*')):
             try:
                 os.remove(file_path)
@@ -168,5 +154,10 @@ async def process_link_handler(message: types.Message):
 async def main():
     await dp.start_polling(bot)
 
-if __name__ == '__main__':
+if name == '__main__':
     asyncio.run(main())
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info)
+                downloaded_files.
