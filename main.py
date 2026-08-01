@@ -9,7 +9,7 @@ import yt_dlp
 # Bot tokeningizni qo'shtirnoq ichiga yozing (masalan: "123456789:ABCdefGhIJK...")
 TOKEN = "TOKENINGIZNI_SHU_YERGA_YOZING"
 
-bot = Bot(token=TOKEN)
+bot = Bot(token=8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag)
 dp = Dispatcher()
 
 # Instaloader sozlamasi
