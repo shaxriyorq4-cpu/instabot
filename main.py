@@ -27,7 +27,7 @@ URL_REGEX = re.compile(
 async def start_handler(message: types.Message):
     await message.answer(
         "Salom! 👋\n\n"
-        "Instagram'dan istalgan video, rasm, reels, story va karusel postlarni yuboring!\n\n"
+        "Instagram'dan istalgan video, rasm va story havolasini yuboring!\n\n"
         "🚀 Havolani yuboring!"
     )
 
@@ -42,63 +42,51 @@ async def process_link_handler(message: types.Message):
     url = match.group(0)
     processing_msg = await message.answer("⏳ Yuklab olinmoqda, iltimos kuting...")
 
-    downloaded_files = []
+    file_path = None
     error_message = None
 
     try:
         ydl_opts = {
-            'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
-            'format': 'best/bestvideo+bestaudio/best',
-            'cookiefile': 'cookies.txt',
-            'ignoreerrors': True,
+            'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s.%(ext)s'),
+            'format': 'best',
+            'noplaylist': True,
         }
         
         def download():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
-                if 'entries' in info:
-                    # Karusel (bir nechta fayl) bo'lsa
-                    files = []
-                    for entry in info['entries']:
-                        if entry:
-                            f = ydl.prepare_filename(entry)
-                            if os.path.exists(f):
-                                files.append(f)
-                    return files
-                else:
-                    # Bitta fayl bo'lsa
-                    f = ydl.prepare_filename(info)
-                    return [f] if os.path.exists(f) else []
+                return ydl.prepare_filename(info)
 
-        downloaded_files = await asyncio.to_thread(download)
+        file_path = await asyncio.to_thread(download)
     except Exception as e:
         error_message = str(e)
         logging.error(f"yt-dlp xatosi: {e}")
 
-    if downloaded_files:
+    # Fayl muvaffaqiyatli yuklansa
+    if file_path and os.path.exists(file_path):
         try:
-            for file_path in downloaded_files:
-                if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                    media_file = types.FSInputFile(file_path)
-                    await message.answer_photo(photo=media_file)
-                else:
-                    media_file = types.FSInputFile(file_path)
-                    await message.answer_video(video=media_file)
+            # Fayl kengaytmasiga qarab rasm yoki video ekanligini aniqlash
+            if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                media_file = types.FSInputFile(file_path)
+                await message.answer_photo(photo=media_file, caption="✅ Marhamat, rasm!")
+            else:
+                media_file = types.FSInputFile(file_path)
+                await message.answer_video(video=media_file, caption="✅ Marhamat, video!")
         except Exception as e:
             await message.answer(f"❌ Faylni yuborishda xatolik: {e}")
         
-        # Fayllarni tozalash
-        for file_path in downloaded_files:
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
     else:
+        # Xatolik qayerdaligini (sababini) aniq ko'rsatish
         if error_message:
             await message.answer(f"❌ Xatolik tafsiloti:\n<code>{error_message}</code>", parse_mode="HTML")
         else:
             await message.answer("❌ Kechirasiz, faylni yuklab bo'lmadi.")
 
+    # Kutish xabarini o'chirish
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
     except Exception:
