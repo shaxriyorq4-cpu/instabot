@@ -27,7 +27,7 @@ URL_REGEX = re.compile(
 async def start_handler(message: types.Message):
     await message.answer(
         "Salom! 👋\n\n"
-        "Instagram'dan istalgan video, rasm va story havolasini yuboring!\n\n"
+        "Instagram'dan istalgan video, rasm, reels va story havolasini yuboring!\n\n"
         "🚀 Havolani yuboring!"
     )
 
@@ -50,6 +50,7 @@ async def process_link_handler(message: types.Message):
             'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s.%(ext)s'),
             'format': 'best',
             'noplaylist': True,
+            'cookiefile': 'cookies.txt',
         }
         
         def download():
@@ -62,10 +63,8 @@ async def process_link_handler(message: types.Message):
         error_message = str(e)
         logging.error(f"yt-dlp xatosi: {e}")
 
-    # Fayl muvaffaqiyatli yuklansa
     if file_path and os.path.exists(file_path):
         try:
-            # Fayl kengaytmasiga qarab rasm yoki video ekanligini aniqlash
             if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 media_file = types.FSInputFile(file_path)
                 await message.answer_photo(photo=media_file, caption="✅ Marhamat, rasm!")
@@ -80,13 +79,11 @@ async def process_link_handler(message: types.Message):
         except Exception:
             pass
     else:
-        # Xatolik qayerdaligini (sababini) aniq ko'rsatish
         if error_message:
             await message.answer(f"❌ Xatolik tafsiloti:\n<code>{error_message}</code>", parse_mode="HTML")
         else:
             await message.answer("❌ Kechirasiz, faylni yuklab bo'lmadi.")
 
-    # Kutish xabarini o'chirish
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
     except Exception:
