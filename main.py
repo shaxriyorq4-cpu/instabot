@@ -7,8 +7,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 
-# Tokenni Railway'dagi Variables (BOT_TOKEN) dan avtomatik o'qiydi
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+# Token to'g'ridan-to'g'ri shu yerga yozildi
+BOT_TOKEN = "8939497082:AAF176bWWpTm4NPTiFaJ6W_0KyhemuKrNNs"
 
 logging.basicConfig(
     level=logging.INFO,
