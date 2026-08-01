@@ -27,7 +27,7 @@ URL_REGEX = re.compile(
 async def start_handler(message: types.Message):
     await message.answer(
         "Salom! 👋\n\n"
-        "Men Instagram va boshqa tarmoqlardan videolarni yuklab beraman.\n\n"
+        "Instagram'dan istalgan video, rasm va story havolasini yuboring!\n\n"
         "🚀 Havolani yuboring!"
     )
 
@@ -40,9 +40,11 @@ async def process_link_handler(message: types.Message):
         return
 
     url = match.group(0)
-    processing_msg = await message.answer("⏳ Media yuklab olinmoqda, iltimos kuting...")
+    processing_msg = await message.answer("⏳ Yuklab olinmoqda, iltimos kuting...")
 
     file_path = None
+    error_message = None
+
     try:
         ydl_opts = {
             'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s.%(ext)s'),
@@ -57,23 +59,34 @@ async def process_link_handler(message: types.Message):
 
         file_path = await asyncio.to_thread(download)
     except Exception as e:
+        error_message = str(e)
         logging.error(f"yt-dlp xatosi: {e}")
-        await message.answer(f"❌ Xatolik tafsiloti: {e}")
 
+    # Fayl muvaffaqiyatli yuklansa
     if file_path and os.path.exists(file_path):
         try:
-            video_file = types.FSInputFile(file_path)
-            await message.answer_video(video=video_file, caption="✅ Marhamat, video!")
+            # Fayl kengaytmasiga qarab rasm yoki video ekanligini aniqlash
+            if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                media_file = types.FSInputFile(file_path)
+                await message.answer_photo(photo=media_file, caption="✅ Marhamat, rasm!")
+            else:
+                media_file = types.FSInputFile(file_path)
+                await message.answer_video(video=media_file, caption="✅ Marhamat, video!")
         except Exception as e:
-            await message.answer(f"Videoni yuborishda xatolik: {e}")
+            await message.answer(f"❌ Faylni yuborishda xatolik: {e}")
         
         try:
             os.remove(file_path)
         except Exception:
             pass
     else:
-        await message.answer("❌ Kechirasiz, videoni yuklab bo'lmadi. Havolani tekshirib qaytadan yuboring.")
+        # Xatolik qayerdaligini (sababini) aniq ko'rsatish
+        if error_message:
+            await message.answer(f"❌ Xatolik tafsiloti:\n<code>{error_message}</code>", parse_mode="HTML")
+        else:
+            await message.answer("❌ Kechirasiz, faylni yuklab bo'lmadi.")
 
+    # Kutish xabarini o'chirish
     try:
         await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
     except Exception:
