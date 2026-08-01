@@ -101,7 +101,7 @@ async def process_link_handler(message: types.Message):
             await bot.edit_message_text("❌ Hech qanday media topilmadi yoki yuklab bo'lmadi.", chat_id=message.chat.id, message_id=processing_msg.message_id)
 
     except Exception as e:
-        await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id,\message_id=processing_msg.message_id)
+        await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id,message_id=processing_msg.message_id)
 
     finally:
         # Serverda joy to'lib qolmasligi uchun yuklangan vaqtincha papkani tozalash
