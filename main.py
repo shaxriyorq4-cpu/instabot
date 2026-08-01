@@ -19,15 +19,16 @@ L = instaloader.Instaloader(
     download_geotags=False,
     download_comments=False,
     save_metadata=False,
-    compress_json=False
+    compress_json=False,
+    request_timeout=10
 )
 
-# Feyk Instagram akkaunt ma'lumotlari
+# Instagram login va parolingiz
 IG_USERNAME = "instadown_v2_bot"
 IG_PASSWORD = "Shaxriyor019283@@"
 
 try:
-    if IG_USERNAME:
+    if IG_USERNAME and IG_USERNAME != "SIZNING_LOGININGIZ":
         try:
             L.load_session_from_file(IG_USERNAME)
         except Exception:
@@ -65,9 +66,12 @@ async def process_link_handler(message: types.Message):
                         username = story_parts[0]
                         
                         profile = instaloader.Profile.from_username(L.context, username)
-                        for story in L.get_stories([profile.userid]):
-                            for item in story.get_items():
-                                L.download_storyitem(item, target=download_dir)
+                        stories = L.get_stories([profile.userid])
+                        for story in stories:
+                            items_list = list(story.get_items())
+                            if items_list:
+                                L.download_storyitem(items_list[0], target=download_dir)
+                                break
                 except Exception as story_err:
                     print(f"Story yuklashda xatolik: {story_err}")
             else:
@@ -103,13 +107,12 @@ async def process_link_handler(message: types.Message):
 
         if downloaded_files:
             downloaded_files.sort()
-            
             for file_path in downloaded_files:
                 try:
                     if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
                         media_file = types.FSInputFile(file_path)
                         await message.answer_photo(photo=media_file)
-                    elif file_path.endswith(('.mp4', '.mov', '.mkv', '*.webm')):
+                    elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
                         media_file = types.FSInputFile(file_path)
                         await message.answer_video(video=media_file)
                 except Exception as file_err:
@@ -117,7 +120,7 @@ async def process_link_handler(message: types.Message):
             
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         else:
-            await bot.edit_message_text("❌ Hech qanday media topilmadi yoki bu kontent uchun login talab qilinadi.", chat_id=message.chat.id, message_id=processing_msg.message_id)
+            await bot.edit_message_text("❌ Hech qanday media topilmadi yoki 429 xatoligi (Too Many Requests). Biroz kuting.", chat_id=message.chat.id, message_id=processing_msg.message_id)
 
     except Exception as e:
         await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id, message_id=processing_msg.message_id)
