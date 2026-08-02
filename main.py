@@ -43,7 +43,7 @@ async def link_handler(message: types.Message):
     if not url.startswith(("http://", "https://")):
         await message.answer("❌ Havola yuboring!")
         return
-            status = await message.answer("⏳ Yuklanmoqda...")
+    status = await message.answer("⏳ Yuklanmoqda...")
 
     user_folder = os.path.join(
         DOWNLOAD_DIR,
