@@ -61,11 +61,14 @@ async def process_link_handler(message: types.Message):
                     username = parts[-1]
                     if username in ["instagram.com", "www.instagram.com"]:
                         username = parts[-2]
-                    profile = instaloader.Profile.from_username(L.context, username)
-                    for story in L.get_stories([profile.userid]):
-                        for item in story.get_items():
-                            L.download_storyitem(item, target=download_dir)
-                    success_insta = True
+                    try:
+                        profile = instaloader.Profile.from_username(L.context, username)
+                        for story in L.get_stories([profile.userid]):
+                            for item in story.get_items():
+                                L.download_storyitem(item, target=download_dir)
+                        success_insta = True
+                    except Exception as limit_err:
+                        error_log += f"\n- Story limiti (429): Instagram vaqtincha blokladi."
         except Exception as e:
             error_log += f"\n- Instaloader xatosi: {str(e)}"
 
@@ -102,7 +105,7 @@ async def process_link_handler(message: types.Message):
             for file_path in downloaded_files:
                 if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')) and os.path.getsize(file_path) > 1024:
                     photo_media.append(file_path)
-                elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
+                    elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
                     video_media.append(file_path)
 
             if photo_media:
