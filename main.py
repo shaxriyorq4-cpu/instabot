@@ -3,8 +3,8 @@ from instagrapi import Client
 
 def instagram_bot_yuklash():
     # Instagramga kirish ma'lumotlari
-    USERNAME = "SIZNING_USERNAME"
-    PASSWORD = "SIZNING_PAROL"
+    USERNAME = "instadown_v2_bot"
+    PASSWORD = "Instadownv2"
 
     cl = Client()
     
