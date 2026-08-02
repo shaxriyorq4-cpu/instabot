@@ -1,5 +1,1 @@
-instaloader
-yt-dlp
-pydantic>=2.7.0
-aiohttp
-aiogram
+instagrapi==2.1.3
