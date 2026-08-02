@@ -41,7 +41,6 @@ async def process_link_handler(message: types.Message):
     error_log = ""
 
     try:
-        # 1. Instaloader orqali post, karusel va story larni tortib ko'ramiz
         success_insta = False
         try:
             if "/p/" in url or "/reel/" in url or "/tv/" in url:
@@ -70,7 +69,6 @@ async def process_link_handler(message: types.Message):
         except Exception as e:
             error_log += f"\n- Instaloader xatosi: {str(e)}"
 
-        # 2. Agar instaloader ololmasa yoki YouTube/boshqa havola bo'lsa, yt-dlp ishlatamiz
         if not success_insta or not glob.glob(os.path.join(download_dir, '**', '*.*'), recursive=True):
             ydl_opts = {
                 'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
@@ -103,12 +101,11 @@ async def process_link_handler(message: types.Message):
 
             for file_path in downloaded_files:
                 if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')) and os.path.getsize(file_path) > 1024:
-                    photo_media.append(file_path)elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
+                    photo_media.append(file_path)
+                elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
                     video_media.append(file_path)
 
-            # Rasmlarni albom qilib yuborish
-            if photo_media:
-                chunked_photos = [photo_media[i:i + 10] for i in range(0, len(photo_media), 10)]
+            if photo_media:chunked_photos = [photo_media[i:i + 10] for i in range(0, len(photo_media), 10)]
                 for chunk in chunked_photos:
                     media_group = [types.InputMediaPhoto(media=types.FSInputFile(p)) for p in chunk]
                     try:
@@ -116,7 +113,6 @@ async def process_link_handler(message: types.Message):
                     except Exception as e:
                         print(f"Rasm yuborish xatosi: {e}")
 
-            # Videolarni yuborish
             for v_path in video_media:
                 try:
                     await message.answer_video(video=types.FSInputFile(v_path))
