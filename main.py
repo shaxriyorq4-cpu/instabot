@@ -71,8 +71,8 @@ async def process_link_handler(message: types.Message):
             'quiet': True,
 }
 
-if os.path.exists("cookies.txt"):
-            ydl_opts["cookiefile"] = "cookies.txt"
+            if os.path.exists("cookies.txt"):
+                ydl_opts["cookiefile"] = "cookies.txt"
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.extract_info(url, download=True)
