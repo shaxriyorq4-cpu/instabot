@@ -27,11 +27,11 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Railway uchun moslashtirilgan YouTube va Shorts yuklab olish funksiyasi"""
+    """Xatolik bermaydigan format tanlash funksiyasi"""
     try:
         ydl_opts = {
-            'format': 'bestvideo+bestaudio/best',
-            'merge_output_format': 'mp4',
+            # ENG MUHIM O'ZGARISH: Format xatosini yo'qotish uchun eng universal usul
+            'format': 'best',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
@@ -44,12 +44,7 @@ async def download_video(url: str, folder: str):
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-            base, _ = os.path.splitext(filename)
-            mp4_filename = base + '.mp4'
-            
-            if os.path.exists(mp4_filename):
-                return mp4_filename
-            elif os.path.exists(filename):
+            if os.path.exists(filename):
                 return filename
                 
             for f in os.listdir(folder):
