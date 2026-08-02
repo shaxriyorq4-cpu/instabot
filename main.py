@@ -21,7 +21,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Link yuboring, raqamlarni sanab, videoni chaqmoq tezligida tashlab beraman. ⚡️")
+    await message.answer("Salom! Link yuboring, videoni sanab turib tashlab beraman. ⚡️")
 
 
 @dp.message()
@@ -32,16 +32,16 @@ async def link_handler(message: types.Message):
         await message.answer("❌ To'g'ri link yuboring.")
         return
 
-    # 1-2-3 gacha sanash animatsiyasini boshlaymiz
+    # 1-2-3 gacha sekinroq sanash animatsiyasi
     status = await message.answer("⚡ 1...")
-    await asyncio.sleep(0.4)
+    await asyncio.sleep(1.0)  # 1 sekund kutish
     
     try:
         await status.edit_text("⚡ 2...")
     except:
         pass
     
-    await asyncio.sleep(0.4)
+    await asyncio.sleep(1.0)  # 1 sekund kutish
     
     try:
         await status.edit_text("⚡ 3...")
