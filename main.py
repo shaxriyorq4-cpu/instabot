@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import FSInputFile
 
-import instaloader
+import yt_dlp
 
 
 TOKEN = "8915219066:AAGSCkzvFImev5HLBdOMqv-q8CWjraGnsHg"
@@ -18,53 +18,41 @@ dp = Dispatcher()
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-L = instaloader.Instaloader(
-    download_videos=True,
-    download_video_thumbnails=False,
-    download_geotags=False,
-    download_comments=False,
-    save_metadata=False,
-    compress_json=False
-)
-
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Link yuboring.")
+    await message.answer("Salom! Instagram Reel yoki YouTube linkini yuboring.")
 
 
-async def download_instagram_reel(url: str, folder: str):
+async def download_video_ytdlp(url: str, folder: str):
     try:
-        if "/reel/" in url:
-            shortcode = url.split("/reel/")[1].split("/")[0]
-        elif "/p/" in url:
-            shortcode = url.split("/p/")[1].split("/")[0]
-        else:
-            print("❌ XATOLIK [1-QADAM]: Link ichidan reel yoki p topilmadi.")
-            return None
-
-        print(f"🔍 [2-QADAM] Shortcode olindi: {shortcode}. Instaloader ishga tushdi...")
+        print(f"🔍 [yt-dlp] Video yuklanmoqda: {url}")
         
-        post = instaloader.Post.from_shortcode(L.context, shortcode)
-        L.download_post(post, target=folder)
+        ydl_opts = {
+            'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
+            'format': 'best[ext=mp4]/best',
+            'quiet': True,
+            'no_warnings': True,
+        }
 
-        print(f"📂 [3-QADAM] Papka tekshirilmoqda: {folder}")
-        
-        # Papka ichidagi fayllarni to'liq ko'rsatish
-        all_files = os.listdir(folder)
-        print(f"📄 Papka ichidagi barcha fayllar: {all_files}")
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            
+            # Agar kengaytmali fayl mavjud bo'lsa
+            if os.path.exists(filename):
+                print(f"✅ [yt-dlp] Muvaffaqiyatli yuklandi: {filename}")
+                return filename
 
-        for file in all_files:
-            # Fayl nomi oxiri .mp4 yoki .MP4 bilan tugashini tekshiramiz
-            if file.lower().endswith(".mp4"):
+        # Papka ichidan qidirib topish
+        for file in os.listdir(folder):
+            if file.lower().endswith(('.mp4', '.mkv', '.webm')):
                 file_path = os.path.abspath(os.path.join(folder, file))
-                print(f"✅ [4-QADAM] MP4 fayl muvaffaqiyatli topildi: {file_path}")
+                print(f"✅ [yt-dlp] Topilgan fayl: {file_path}")
                 return file_path
 
-        print("❌ XATOLIK [4-QADAM]: Papka ichidan birorta ham .mp4 topilmadi!")
-
     except Exception as e:
-        print(f"❌ XATOLIK [INSTAGRAM BLOCK]:")
+        print(f"❌ XATOLIK [yt-dlp]:")
         traceback.print_exc()
 
     return None
@@ -78,27 +66,32 @@ async def link_handler(message: types.Message):
         await message.answer("❌ To'g'ri link yuboring.")
         return
 
-    status = await message.answer("⏳ Tekshirilmoqda...")
+    status = await message.answer("⏳ Video yuklanmoqda...")
 
     user_folder = os.path.join(DOWNLOAD_DIR, str(message.from_user.id))
     os.makedirs(user_folder, exist_ok=True)
 
     try:
-        video_path = await download_instagram_reel(url, user_folder)
+        video_path = await download_video_ytdlp(url, user_folder)
 
         if video_path and os.path.exists(video_path):
-            print(f"📤 [5-QADAM] Telegramga yuborilmoqda...")
+            print(f"📤 Telegramga yuborilmoqda: {video_path}")
             
+            file_size = os.path.getsize(video_path)
+            if file_size > 50 * 1024 * 1024:
+                await status.edit_text("❌ Video hajmi 50 MB dan katta!")
+                return
+
             video_file = FSInputFile(video_path)
             await message.answer_video(video=video_file, request_timeout=120)
             
-            print("✅ [6-QADAM] Muvaffaqiyatli yakunlandi!")
+            print("✅ Telegramga yuborildi!")
             await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
         else:
             await status.edit_text("❌ Xatolik: Video fayl topilmadi.")
 
     except Exception as e:
-        print(f"❌ KRITIK XATO [HANDLER BLOCK]:")
+        print(f"❌ KRITIK XATO:")
         traceback.print_exc()
         await status.edit_text(f"❌ Xato: {e}")
 
