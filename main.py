@@ -28,7 +28,7 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Instagram va YouTube (Reels/Shorts) videolarini yuklab olish funksiyasi"""
+    """Instagram va YouTube videolarini yuklab olish funksiyasi"""
     try:
         ydl_opts = {
             'format': 'best',
@@ -38,7 +38,8 @@ async def download_video(url: str, folder: str):
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'web']
+                    'player_client': ['android', 'web'],
+                    'skip': ['hls', 'dash']
                 }
             }
         }
