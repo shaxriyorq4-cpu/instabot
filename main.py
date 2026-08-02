@@ -1,6 +1,7 @@
 import os
 import shutil
 import asyncio
+import traceback
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -20,32 +21,28 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
     text = (
-        "Salom! YouTube va Shorts yuklash boti ishga tushdi. 🤝\n"
-        "Videolar havolasini yuboring!"
+        "Salom! @instadown_v2_bot ga xush kelibsiz. 🤝\n"
+        "ishni boshlaymizmi!"
     )
     await message.answer(text)
 
 
 async def download_video(url: str, folder: str):
-    """YouTube va Shorts videolarini xatoliksiz yuklab olish"""
+    """Instagram va YouTube videolarini yuklab olish funksiyasi"""
     try:
         ydl_opts = {
-            # YouTube format talablarini chetlab o'tish uchun eng so'nggi sozlama
-            'format': 'best/worst',
+            'format': 'best',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
-            'geo_bypass': True,
-            'nocheckcertificate': True,
-            # Server IP va bot blokini olish uchun cookies.txt fayli
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'web']
+                    'player_client': ['android', 'web'],
+                    'skip': ['hls', 'dash']
                 }
             }
         }
-        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
@@ -67,8 +64,8 @@ async def download_video(url: str, folder: str):
 async def link_handler(message: types.Message):
     url = message.text.strip()
     
-    if not url.startswith(("http://", "https://")) or ("youtube.com" not in url and "youtu.be" not in url):
-        await message.answer("❌ Iltimos faqat YouTube yoki Shorts linkini yuboring!")
+    if not url.startswith(("http://", "https://")):
+        await message.answer("❌ Iltimos linkni tekshirib qayta yuboring!")
         return
 
     status = await message.answer("⏳")
@@ -82,7 +79,7 @@ async def link_handler(message: types.Message):
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
             
-            final_caption = "📥 YouTube videosi yuklab olindi ✅"
+            final_caption = "📥@instadown_v2_bot orqali yuklandi      ✅"
 
             await message.answer_video(
                 video=video_file, 
@@ -96,12 +93,12 @@ async def link_handler(message: types.Message):
                 pass
             print("✅ Video muvaffaqiyatli yuborildi!")
         else:
-            await status.edit_text("❌ Videoni yuklab bo'lmadi. YouTube bu videoga cheklov qo'ygan yoki cookies.txt talab qiladi.")
+            await status.edit_text("❌ linkda xatolik bor Iltimos linkni tekshirib qayta yuboring!")
 
     except Exception as e:
         print(f"Xatolik: {e}")
         try:
-            await status.edit_text("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring!")
+            await status.edit_text("❌ linkda xatolik bor Iltimos linkni tekshirib qayta yuboring!")
         except:
             pass
 
@@ -111,7 +108,7 @@ async def link_handler(message: types.Message):
 
 
 async def main():
-    print("🚀 YouTube Shorts bot ishga tushdi...")
+    print("🚀 Bot ishga tushdi...")
     await dp.start_polling(bot)
 
 
