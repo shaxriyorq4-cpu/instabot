@@ -10,7 +10,7 @@ import yt_dlp
 import instaloader
 
 
-TOKEN = "TOKEN_BU_YERGA"
+TOKEN = "8915219066:AAHv2SbrPqW_Tx2eU-zNcLEvYEO5wpgSRWU"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
