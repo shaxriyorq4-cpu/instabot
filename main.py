@@ -67,7 +67,7 @@ def get_story_username(url: str):
             return parts[index + 1]
 
     except Exception as e:
-        print("❌ XATOLIK [get_story_username]:", e)
+        print("❌ XATOLIK [get_story_username funksiyasida]:", e)
 
     return None
 
@@ -124,7 +124,8 @@ async def download_story(
     files = []
 
     try:
-        print(f"🔍 Story yuklanmoqda (Username: {username})...")
+        print(f"🔍 [download_story] funksiyasi ishga tushdi. Username: {username}")
+        
         profile = instaloader.Profile.from_username(
             L.context,
             username
@@ -147,8 +148,10 @@ async def download_story(
 
     except Exception as e:
         print(
-            f"❌ XATOLIK [download_story]: Story yuklab bo'lmadi ({username}). Sababi: {e}"
+            f"❌ ANIQSILDI: Xatolik [download_story] funksiyasida yuz berdi! "
+            f"Sababi: {e} (Ehtimol Instagram 429 - Too Many Requests cheklovini qo'ydi)"
         )
+        raise e  # Xatoni yuqoriga uzatamiz
 
     return files
 
@@ -159,7 +162,7 @@ async def download_instagram(
 ):
 
     media_type = detect_instagram_type(url)
-    print(f"📌 Instagram turi aniqlandi: {media_type} | Link: {url}")
+    print(f"📌 [download_instagram] | Turi: {media_type} | Link: {url}")
 
     if media_type == "story":
 
@@ -172,7 +175,7 @@ async def download_instagram(
                 folder
             )
 
-        print("❌ XATOLIK: Story uchun username topilmadi.")
+        print("❌ ANIQSILDI: [get_story_username]dan username topilmadi.")
         return []
 
     if media_type in (
@@ -198,7 +201,8 @@ async def download_instagram(
                     .split("/")[0]
                 )
 
-            print(f"🔍 Instagram Post/Reel yuklanmoqda (Shortcode: {shortcode})...")
+            print(f"🔍 [download_instagram] | Post/Reel yuklanmoqda. Shortcode: {shortcode}")
+            
             post = instaloader.Post.from_shortcode(
                 L.context,
                 shortcode
@@ -213,11 +217,11 @@ async def download_instagram(
 
         except Exception as e:
             print(
-                f"❌ XATOLIK [download_instagram]: Post/Reel yuklab bo'lmadi. Sababi: {e}"
+                f"❌ ANIQSILDI: Xatolik [download_instagram] post/reel qismida! Sababi: {e}"
             )
-            return []
+            raise e
 
-    print("❌ XATOLIK: Noma'lum Instagram havolasi turi.")
+    print("❌ ANIQSILDI: Noma'lum Instagram havolasi turi.")
     return []
 
 
@@ -225,7 +229,7 @@ async def download_youtube(
     url: str,
     folder: str
 ):
-    print(f"🔍 YouTube video yuklanmoqda | Link: {url}")
+    print(f"🔍 [download_youtube] | YouTube video yuklanmoqda | Link: {url}")
 
     options = {
         "outtmpl": f"{folder}/%(id)s.%(ext)s",
@@ -251,9 +255,9 @@ async def download_youtube(
 
     except Exception as e:
         print(
-            f"❌ XATOLIK [download_youtube]: YouTube yuklab bo'lmadi. Sababi: {e}"
+            f"❌ ANIQSILDI: Xatolik [download_youtube] funksiyasida! Sababi: {e}"
         )
-        return []
+        raise e
 
     return await collect_media(
         folder
@@ -296,7 +300,7 @@ async def send_media_group(
                 ".webm"
             )
         ):
-            print("🟢 VIDEO FAYL TOPILDI:", file)
+            print("🟢 [send_media_group] | Video fayl topildi:", file)
 
             size = os.path.getsize(
                 file
@@ -309,16 +313,16 @@ async def send_media_group(
                         media=FSInputFile(file)
                     )
                 )
-                print("📤 TELEGRAMGA QO'SHILDI:", file)
+                print("📤 [send_media_group] | Telegramga yuborishga qo'shildi:", file)
 
             else:
-                print(f"❌ XATOLIK: Video hajmi 50MB dan katta ({size} bayt)")
+                print(f"❌ ANIQSILDI: Video hajmi 50MB dan katta ({size} bayt)")
                 await message.answer(
                     "❌ Video 50 MB dan katta."
                 )
 
     if not media:
-        print("❌ XATOLIK: Yuborish uchun tayyor media ro'yxati bo'sh.")
+        print("❌ ANIQSILDI: [send_media_group] ichida yuboriladigan media topilmadi.")
         await message.answer(
             "❌ Media topilmadi."
         )
@@ -343,8 +347,9 @@ async def send_media_group(
 
     except Exception as e:
         print(
-            f"❌ XATOLIK [send_media_group]: Telegramga yuborishda xato yuz berdi. Sababi: {e}"
+            f"❌ ANIQSILDI: Xatolik [send_media_group] Telegramga yuborishda! Sababi: {e}"
         )
+        raise e
 
 
 @dp.message()
@@ -353,7 +358,7 @@ async def link_handler(
 ):
 
     url = message.text.strip()
-    print(f"\n📩 Yangi xabar keldi: {url} (User ID: {message.from_user.id})")
+    print(f"\n📩 [link_handler] | Yangi xabar keldi: {url} (User ID: {message.from_user.id})")
 
     if not url.startswith(
         (
@@ -404,7 +409,7 @@ async def link_handler(
             )
 
         if files:
-            print(f"✅ Topilgan fayllar soni: {len(files)}")
+            print(f"✅ [link_handler] | Topilgan fayllar soni: {len(files)}")
             await send_media_group(
                 message,
                 files
@@ -416,18 +421,18 @@ async def link_handler(
             )
 
         else:
-            print("⚠️ Ogohlantirish: `files` ro'yxati bo'sh qaytdi.")
+            print("⚠️ [link_handler] | Ogohlantirish: `files` ro'yxati bo'sh qaytdi.")
             await status.edit_text(
                 "❌ Media topilmadi."
             )
 
     except Exception as e:
         print(
-            f"❌ XATOLIK [link_handler asosiy qism]: {e}"
+            f"❌ KRITIK XATO [link_handler asosiy try-except blokida]: {e}"
         )
 
         await status.edit_text(
-            f"❌ Xatolik:\n{e}"
+            f"❌ Xatolik yuz berdi:\n{e}"
         )
 
     finally:
