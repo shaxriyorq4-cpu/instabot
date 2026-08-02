@@ -20,7 +20,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Link yuboring, qum soat aylanib turgan holda videoni oddiy video formatida tashlab beraman. ⏳")
+    await message.answer("Salom! instadown_v2_botiga xush kelibsiz. 🤝ishni boshlaymizmi!")
 
 
 async def download_video(url: str, folder: str):
@@ -48,7 +48,7 @@ async def link_handler(message: types.Message):
     url = message.text.strip()
     
     if not url.startswith(("http://", "https://")):
-        await message.answer("❌ To'g'ri link yuboring.")
+        await message.answer("❌ Iltimos linki tekshirib qayta yuboring.")
         return
 
     # Qum soat quyamiz
