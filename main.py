@@ -28,7 +28,7 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Videoni yuklab olish funksiyasi (YouTube Shorts va videolar uchun)"""
+    """Videoni yuklab olish funksiyasi (YouTube va Shorts xatoliklarini chetlab o'tish uchun)"""
     try:
         ydl_opts = {
             'format': 'best[ext=mp4]/best',
@@ -36,7 +36,12 @@ async def download_video(url: str, folder: str):
             'no_warnings': True,
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'concurrent_fragment_downloads': 5,
-            'extractor_args': {'youtube': {'player_client': ['android', 'web']}}
+            # YouTube bot tekshiruvidan o'tish uchun client sozlamasi:
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['mweb', 'android']
+                }
+            }
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -67,7 +72,7 @@ async def link_handler(message: types.Message):
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
             
-            # Videoning tagiga yoziladigan yangi matn
+            # Videoning tagiga yoziladigan matn
             final_caption = "📥@instadown_v2_bot orqali yuklandi      ✅"
 
             await message.answer_video(
