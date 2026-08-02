@@ -32,7 +32,7 @@ async def process_link_handler(message: types.Message):
 
     try:
         ydl_opts = {
-            'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
+            'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
             'format': 'best/bestvideo+bestaudio/best',
             'ignoreerrors': True,
             'quiet': True,
@@ -56,15 +56,30 @@ async def process_link_handler(message: types.Message):
 
         if downloaded_files:
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
+            
+            # Rasmlarni bitta albom (MediaGroup) qilib yuborish uchun yig'amiz
+            photo_media = []
+            
             for file_path in downloaded_files:
                 try:
                     if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')) and os.path.getsize(file_path) > 1024:
-                        await message.answer_photo(photo=types.FSInputFile(file_path))
-                    elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
+                        photo_media.append(types.InputMediaPhoto(media=types.FSInputFile(file_path)))
+                    elif file_path.endswith(('.mp4', '.mov', '*.mkv', '*.webm')):
+                        # Agar oldin yig'ilgan rasmlar bo'lsa, avval ularni albom ko'rinishida yuboramiz
+                        if photo_media:
+                            await bot.send_media_group(chat_id=message.chat.id, media=photo_media)
+                            photo_media = []
+                        # Videoni alohida yuboramiz (Telegram albomiga faqat rasm yoki faqat video tushadi)
                         await message.answer_video(video=types.FSInputFile(file_path))
-                    await asyncio.sleep(0.5)
+                    
+                    await asyncio.sleep(0.3)
                 except Exception as file_err:
                     print(f"Yuborish xatosi: {file_err}")
+            
+            # Agar oxirida yana yig'ilib qolgan rasmlar bo'lsa, ularni ham yuboramiz
+            if photo_media:
+                await bot.send_media_group(chat_id=message.chat.id, media=photo_media)
+
         else:
             err_details = error_log if error_log.strip() else "Media fayllari topilmadi yoki havola yaroqsiz."
             await bot.edit_message_text(
