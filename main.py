@@ -105,7 +105,7 @@ async def process_link_handler(message: types.Message):
             for file_path in downloaded_files:
                 if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')) and os.path.getsize(file_path) > 1024:
                     photo_media.append(file_path)
-                    elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
+                elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
                     video_media.append(file_path)
 
             if photo_media:
