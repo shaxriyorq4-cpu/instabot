@@ -12,9 +12,9 @@ TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Instaloader ni rasmlar uchun sozlash
+# Instaloader ni sozlash (istoriyalar va rasmlar uchun)
 L = instaloader.Instaloader(
-    download_videos=False,
+    download_videos=True,
     download_video_thumbnails=False,
     download_geotags=False,
     download_comments=False,
@@ -41,19 +41,32 @@ async def process_link_handler(message: types.Message):
     os.makedirs(download_dir, exist_ok=True)
 
     try:
-        # 1. Agar havola Instagram profil havolasi bo'lsa (istoriyalarni olish uchun yt-dlp ishlatamiz)
-        # yt-dlp profil havolasidan ham istoryalarni tortib bera oladi
-        
-        # 2. Agar post bo'lsa instaloader orqali rasmlarni olish
+        # 1. Instagram profil havolasi bo'lsa (istoriyalarini olish uchun)
+        if "instagram.com/" in url and ("/p/" not in url) and ("/reel/" not in url):
+            parts = [p for p in url.split("/") if p]
+            if len(parts) >= 3:
+                username = parts[-1]
+                if username == "instagram.com" or username == "www.instagram.com":
+                    username = parts[-2]
+                
+                try:
+                    profile = instaloader.Profile.from_username(L.context, username)
+                    for story in L.get_stories([profile.userid]):
+                        for item in story.get_items():
+                            L.download_storyitem(item, target=download_dir)
+                except Exception as story_err:
+                    print(f"Istorya yuklashda xatolik: {story_err}")
+
+        # 2. Instagram post / karusel bo'lsa
         if "instagram.com/p/" in url:
             try:
                 shortcode = url.split("/p/")[1].split("/")[0]
                 post = instaloader.Post.from_shortcode(L.context, shortcode)
                 L.download_post(post, target=download_dir)
             except Exception as inst_err:
-                print(f"Instaloader xatosi: {inst_err}")
+                print(f"Instaloader post xatosi: {inst_err}")
 
-        # 3. Asosiy yt-dlp sozlamalari (Profil istoriyalari, Reels va YouTube uchun)
+        # 3. Reels, YouTube va boshqa videolar uchun yt-dlp
         ydl_opts = {
             'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
             'format': 'best/bestvideo+bestaudio/best',
@@ -73,10 +86,10 @@ async def process_link_handler(message: types.Message):
                 filename = ydl.prepare_filename(info)
                 downloaded_files.append(filename)
 
-        # Papkadagi barcha fayllarni to'liq yig'ish
+        # Papkadagi barcha fayllarni to'liq yig'ish (ichki papkalardan ham)
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         for ext in extensions:
-            downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
+            downloaded_files.extend(glob.glob(os.path.join(download_dir, '**', ext), recursive=True))
 
         # Unikal fayllarni to'plash
         downloaded_files = sorted(list(set([os.path.abspath(f) for f in downloaded_files if os.path.exists(f)])))
@@ -84,7 +97,7 @@ async def process_link_handler(message: types.Message):
         if downloaded_files:
             for file_path in downloaded_files:
                 try:
-                    if file_path.endswith(('.jpg', '*.jpeg', '*.png', '*.webp')):
+                    if file_path.endswith(('.jpg', '.jpeg', '.png', '*.webp')):
                         media_file = types.FSInputFile(file_path)
                         await message.answer_photo(photo=media_file)
                     elif file_path.endswith(('.mp4', '*.mov', '*.mkv', '*.webm')):
@@ -97,10 +110,10 @@ async def process_link_handler(message: types.Message):
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         else:
             await bot.edit_message_text(
-                "❌ Media yoki istoriyalar topilmadi (Profil yopiq yoki istoryasi yo'q).", 
+                "❌ Media topilmadi. Profil yopiq bo'lishi mumkin yoki hozirda aktiv istoriyasi yo'q.", 
                 chat_id=message.chat.id, 
                 message_id=processing_msg.message_id
-        )
+            )
 
     except Exception as e:
         error_text = str(e)
@@ -115,7 +128,7 @@ async def process_link_handler(message: types.Message):
         )
 
     finally:
-        for file_path in glob.glob(os.path.join(download_dir, '*.*')):
+        for file_path in glob.glob(os.path.join(download_dir, '**', '*.*'), recursive=True):
             try:
                 os.remove(file_path)
             except:
