@@ -1,11 +1,11 @@
 import os
 import glob
-import time
 import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 import yt_dlp
 import instaloader
+import shutil
 
 TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 
@@ -29,7 +29,7 @@ async def start_handler(message: types.Message):
 async def process_link_handler(message: types.Message):
     url = message.text.strip()
     
-    if not (url.startswith("http://") or url.startswith("https://")):
+    if not url.startswith(("http://", "https://")):
         await message.answer("❌ Iltimos, to'g'ri havola yuboring!")
         return
 
@@ -41,7 +41,7 @@ async def process_link_handler(message: types.Message):
     error_log = ""
 
     try:
-        if "/p/" in url:
+        if "/p/" in url or "/reel/" in url or "/tv/" in url:
             try:
                 shortcode = url.split("/p/")[1].split("/")[0]
                 post = instaloader.Post.from_shortcode(L.context, shortcode)
@@ -65,12 +65,14 @@ async def process_link_handler(message: types.Message):
 
         else:
             ydl_opts = {
-                'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
-                'format': 'best/bestvideo+bestaudio/best',
-                'cookiefile': 'cookies.txt',
-                'ignoreerrors': True,
-                'quiet': True,
-            }
+            'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
+            'format': 'best/bestvideo+bestaudio/best',
+            'ignoreerrors': True,
+            'quiet': True,
+}
+
+if os.path.exists("cookies.txt"):
+            ydl_opts["cookiefile"] = "cookies.txt"
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.extract_info(url, download=True)
@@ -80,7 +82,7 @@ async def process_link_handler(message: types.Message):
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         found_files = []
         for ext in extensions:
-            found_files.extend(glob.glob(os.path.join(download_dir, '**', ext), recursive=True))
+            found_files.extend(glob.glob(os.path.join(download_dir, "**", ext), recursive=True))
 
         downloaded_files = sorted(list(set([os.path.abspath(f) for f in found_files if os.path.exists(f)])))
 
@@ -92,7 +94,7 @@ async def process_link_handler(message: types.Message):
                         await message.answer_photo(photo=types.FSInputFile(file_path))
                     elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
                         await message.answer_video(video=types.FSInputFile(file_path))
-                    time.sleep(0.5)
+                    await asyncio.sleep(0.5)
                 except Exception as file_err:
                     print(f"Yuborish xatosi: {file_err}")
         else:
@@ -118,7 +120,8 @@ async def process_link_handler(message: types.Message):
     finally:
         for file_path in glob.glob(os.path.join(download_dir, '**', '*.*'), recursive=True):
             try:
-                os.remove(file_path)
+                if os.path.isfile(file_path):
+                   os.remove(file_path)
             except:
                 pass
         try:
