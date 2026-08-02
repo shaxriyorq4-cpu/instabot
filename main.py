@@ -34,31 +34,27 @@ async def process_link_handler(message: types.Message):
             'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
             'format': 'best/bestvideo+bestaudio',
             'cookiefile': 'cookies.txt',
-            'ignoreerrors': True,
+            'ignoreerrors': False,  # Xatoni yashirmasdan to'g'ridan-to'g'ri tutib olish uchun False qilindi
             'quiet': True,
-            'extract_flat': False, # Rasmlar va karusel postlarini to'liq ochish uchun
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            try:
-                info = ydl.extract_info(url, download=True)
-                if info and 'entries' in info:
-                    for entry in info['entries']:
-                        if entry:
-                            filename = ydl.prepare_filename(entry)
-                            downloaded_files.append(filename)
-                elif info:
-                    filename = ydl.prepare_filename(info)
-                    downloaded_files.append(filename)
-            except Exception as ydl_err:
-                print(f"YDL yuklashda xatolik: {ydl_err}")
+            info = ydl.extract_info(url, download=True)
+            if info and 'entries' in info:
+                for entry in info['entries']:
+                    if entry:
+                        filename = ydl.prepare_filename(entry)
+                        downloaded_files.append(filename)
+            elif info:
+                filename = ydl.prepare_filename(info)
+                downloaded_files.append(filename)
 
-        # Barcha yuklangan fayllarni topish (rasmlar va videolar uchun kengaytirilgan qidiruv)
+        # Barcha yuklangan fayllarni topish
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         for ext in extensions:
             downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
 
-        # Unikal fayllarni to'plash (ortiqcha takrorlanishlarni oldini olish uchun)
+        # Unikal fayllarni to'plash
         downloaded_files = sorted(list(set([os.path.abspath(f) for f in downloaded_files if os.path.exists(f)])))
 
         if downloaded_files:
@@ -84,20 +80,10 @@ async def process_link_handler(message: types.Message):
 
     except Exception as e:
         error_text = str(e)
-        print(f"Xatolik tafsiloti: {error_text}")
+        print(f"ANIQ XATOLIK: {error_text}")
         
-        # Xatolik qaysi qatorda yoki qayerdan kelib chiqqanini aniq ko'rsatish
-        import traceback
-        tb = traceback.extract_tb(e.__traceback__)
-        if tb:
-            last_call = tb[-1]
-            error_location = f"Fayl: {os.path.basename(last_call.filename)}, Qator: {last_call.lineno}, Funksiya: {last_call.name}"
-        else:
-            error_location = "Noma'lum joy"
-
         await bot.edit_message_text(
             f"❌ **Xatolik yuz berdi!**\n\n"
-            f"📍 Manzil: {error_location}\n"
             f"🛠 Sabab: `{error_text}`", 
             chat_id=message.chat.id, 
             message_id=processing_msg.message_id,
