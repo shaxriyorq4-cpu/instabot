@@ -37,6 +37,7 @@ async def process_link_handler(message: types.Message):
             'ignoreerrors': True,
             'quiet': True,
             'noplaylist': False,
+            'extract_flat': False,
         }
 
         if os.path.exists("cookies.txt"):
@@ -44,7 +45,16 @@ async def process_link_handler(message: types.Message):
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.extract_info(url, download=True)
+                info = ydl.extract_info(url, download=True)
+                
+                # Agar havola profil yoki ko'p qismli kontent bo'lsa, entries larni ham majburiy yuklaymiz
+                if info and 'entries' in info:
+                    for entry in info['entries']:
+                        if entry and 'url' in entry:
+                            try:
+                                ydl.download([entry['url']])
+                            except:
+                                pass
         except Exception as e:
             error_log = str(e)
 
@@ -95,8 +105,7 @@ async def process_link_handler(message: types.Message):
 
     except Exception as e:
         print(f"ASOSIY XATOLIK: {str(e)}")
-        await bot.edit_message_text(
-            f"❌ **Xatolik yuz berdi!**\n\n"
+        await bot.edit_message_text(f"❌ **Xatolik yuz berdi!**\n\n"
             f"🛠 Tafsilot: `{str(e)}`", 
             chat_id=message.chat.id, 
             message_id=processing_msg.message_id,
@@ -110,7 +119,8 @@ async def process_link_handler(message: types.Message):
                    os.remove(file_path)
             except:
                 pass
-        try:os.rmdir(download_dir)
+        try:
+            os.rmdir(download_dir)
         except:
             pass
 
