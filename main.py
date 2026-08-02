@@ -1,12 +1,9 @@
 import os
-import shutil
 import asyncio
 import traceback
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import FSInputFile
-
 import yt_dlp
 
 
@@ -15,32 +12,26 @@ TOKEN = "8915219066:AAGSCkzvFImev5HLBdOMqv-q8CWjraGnsHg"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-DOWNLOAD_DIR = "downloads"
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Link yuboring, video tayyor bo'lishi bilan darhol tashlab beraman. ⚡️")
+    await message.answer("Salom! Link yuboring, chaqmoq tezligida tashlab beraman. ⚡️")
 
 
-async def download_video_background(url: str, folder: str):
-    """Videoni orqa fonda maksimal tezlikda yuklab olish"""
+async def get_direct_url(url: str):
+    """Instagram'dan videoning yashirin direct havolasini sekundida sug'urib olish"""
     try:
         ydl_opts = {
             'format': 'best[ext=mp4]/best',
             'quiet': True,
             'no_warnings': True,
-            'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
-            'concurrent_fragment_downloads': 5
         }
+        # download=False orqali faylni serverga skachat qilmaymiz, faqat havolani olamiz
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            if os.path.exists(filename):
-                return filename
+            info = ydl.extract_info(url, download=False)
+            return info.get('url')
     except Exception as e:
-        print(f"Yuklashda xato: {e}")
+        print(f"Havolani olishda xato: {e}")
     return None
 
 
@@ -52,68 +43,53 @@ async def link_handler(message: types.Message):
         await message.answer("❌ To'g'ri link yuboring.")
         return
 
-    user_folder = os.path.join(DOWNLOAD_DIR, str(message.from_user.id))
-    os.makedirs(user_folder, exist_ok=True)
+    # 1. Havolani orqa fonda darhol qidirishni boshlaymiz
+    link_task = asyncio.create_task(get_direct_url(url))
 
-    # 1. Videoni orqa fonda darhol yuklashni boshlaymiz
-    download_task = asyncio.create_task(download_video_background(url, user_folder))
-
-    # 2. Sanoq xabarini chiqaramiz
+    # 2. Sanoqni boshlaymiz
     status = await message.answer("⚡ 1...")
-
-    # Sanoqni va videoning tayyor bo'lishini bir vaqtda kuzatamiz (kim birinchi bo'lsa)
-    # Ya'ni video tezroq yuklansa, darhol tashlanadi va sanoq to'xtatiladi.
     
-    # "2" ga o'tamiz
-    await asyncio.sleep(0.4)
-    if download_task.done():
-        video_path = await download_task
-        await send_video_and_cleanup(message, status, video_path, user_folder)
-        return
+    steps = ["⚡ 2...", "⚡ 3..."]
+    for step_text in steps:
+        # Havola topilganini har 0.2 sekundda tekshirib boramiz
+        for _ in range(2):
+            if link_task.done():
+                break
+            await asyncio.sleep(0.1)
+            
+        if link_task.done():
+            break
+            
+        try:
+            await status.edit_text(step_text)
+        except:
+            pass
+
+    # Havolaning tayyor bo'lishini kutamiz (odatda bu juda tez ishlaydi)
+    direct_url = await link_task
+
     try:
-        await status.edit_text("⚡ 2...")
-    except:
-        pass
-
-    # "3" ga o'tamiz
-    await asyncio.sleep(0.4)
-    if download_task.done():
-        video_path = await download_task
-        await send_video_and_cleanup(message, status, video_path, user_folder)
-        return
-    try:
-        await status.edit_text("⚡ 3...")
-    except:
-        pass
-
-    # Agar hali ham yuklanayotgan bo'lsa, oxirigacha kutamiz
-    video_path = await download_task
-    await send_video_and_cleanup(message, status, video_path, user_folder)
-
-
-async def send_video_and_cleanup(message, status, video_path, user_folder):
-    """Videoni yuborish va papkani tozalash yordamchi funksiyasi"""
-    try:
-        if video_path and os.path.exists(video_path):
-            video_file = FSInputFile(video_path)
-            await message.answer_video(video=video_file, request_timeout=120)
+        if direct_url:
+            # Telegramning o'zi videoni to'g'ridan-to'g'ri tortib oladi (fayl yuklab o'tirilmaydi)
+            await message.answer_video(video=direct_url)
             
             try:
                 await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
             except:
                 pass
-            print("✅ Video tayyor bo'lishi bilan darhol tashlandi!")
+            print("✅ Chaqmoq tezligida tashlandi!")
         else:
-            await status.edit_text("❌ Video topilmadi yoki yuklab bo'lmadi.")
+            await status.edit_text("❌ Videoni topib bo'lmadiki, linkni tekshiring.")
     except Exception as e:
         print(f"Yuborishda xato: {e}")
-    finally:
-        if os.path.exists(user_folder):
-            shutil.rmtree(user_folder, ignore_errors=True)
+        try:
+            await status.edit_text("❌ Yuborishda xatolik yuz berdi.")
+        except:
+            pass
 
 
 async def main():
-    print("🚀 Bot ishga tushdi...")
+    print("🚀 Ultratezkor bot ishga tushdi...")
     await dp.start_polling(bot)
 
 
