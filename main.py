@@ -31,11 +31,13 @@ async def process_link_handler(message: types.Message):
     error_log = ""
 
     try:
+        # Karusel va barcha story elementlarini to'liq yuklash uchun sozlamalar
         ydl_opts = {
-            'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
+            'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
             'format': 'best/bestvideo+bestaudio/best',
-            'ignoreerrors': False, # Xatoni ushlab olish uchun False qilindi
+            'ignoreerrors': True,  # Bitta elementda xato bo'lsa ham qolganlarini yuklashda davom etish
             'quiet': True,
+            'noplaylist': False,   # Karusellar va ko'p qismli story'larni to'liq olish uchun False bo'lishi shart
         }
 
         if os.path.exists("cookies.txt"):
@@ -45,8 +47,9 @@ async def process_link_handler(message: types.Message):
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.extract_info(url, download=True)
         except Exception as e:
-            error_log = str(e) # Aniq xato matnini yozib olamiz
+            error_log = str(e) # Aniq xato matnini saqlab qolamiz
 
+        # Barcha turdagi rasm va video formatlarini qidirish
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.heic', '*.mp4', '*.mov', '*.mkv', '*.webm')
         found_files = []
         for ext in extensions:
@@ -66,6 +69,7 @@ async def process_link_handler(message: types.Message):
                 elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
                     video_media.append(file_path)
 
+            # Bir nechta rasmlarni guruhlab (albom ko'rinishida) yuborish
             if photo_media:
                 chunked_photos = [photo_media[i:i + 10] for i in range(0, len(photo_media), 10)]
                 for chunk in chunked_photos:
@@ -75,6 +79,7 @@ async def process_link_handler(message: types.Message):
                     except Exception as e:
                         print(f"Rasm yuborish xatosi: {e}")
 
+            # Videolarni ketma-ket yuborish
             for v_path in video_media:
                 try:
                     await message.answer_video(video=types.FSInputFile(v_path))
@@ -83,8 +88,8 @@ async def process_link_handler(message: types.Message):
                     print(f"Video yuborish xatosi: {e}")
 
         else:
-            # Qanday xatolik yuz berganini to'g'ridan-to'g'ri foydalanuvchiga chiqaramiz
-            err_details = error_log if error_log else "Fayl topilmadi yoki havola yaroqsiz."
+            # Aniq xatoni ekranga chiqarish qismi O'CHIRILMADI (saqlab qolindi)
+            err_details = error_log if error_log else "Fayl topilmadi yoki havola yaroqsiz (Instagram bloklagan bo'lishi mumkin)."
             await bot.edit_message_text(
                 f"❌ **Yuklab bo'lmadi!**\n\n"
                 f"🔍 **Aniq xato:**\n`{err_details}`", 
@@ -93,8 +98,7 @@ async def process_link_handler(message: types.Message):
                 parse_mode="Markdown"
             )
 
-    except Exception as e:
-        print(f"ASOSIY XATOLIK: {str(e)}")
+    except Exception as e:print(f"ASOSIY XATOLIK: {str(e)}")
         await bot.edit_message_text(
             f"❌ **Xatolik yuz berdi!**\n\n"
             f"🛠 Tafsilot: `{str(e)}`", 
