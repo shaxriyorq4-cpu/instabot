@@ -22,13 +22,13 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 async def start_handler(message: types.Message):
     text = (
         "Salom! @instadown_v2_bot ga xush kelibsiz. 🤝\n"
-        "ishni boshlaymizmi!"
+        "YouTube va Shorts videolarini yuboring!"
     )
     await message.answer(text)
 
 
 async def download_video(url: str, folder: str):
-    """Instagram va YouTube videolarini yuklab olish funksiyasi"""
+    """YouTube va Shorts videolarini yuklab olish funksiyasi"""
     try:
         ydl_opts = {
             'format': 'best',
@@ -65,7 +65,7 @@ async def link_handler(message: types.Message):
     url = message.text.strip()
     
     if not url.startswith(("http://", "https://")):
-        await message.answer("❌ Iltimos linkni tekshirib qayta yuboring!")
+        await message.answer("❌ Iltimos YouTube linkini tekshirib qayta yuboring!")
         return
 
     status = await message.answer("⏳")
@@ -91,7 +91,7 @@ async def link_handler(message: types.Message):
                 await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
             except:
                 pass
-            print("✅ Video muvaffaqiyatli yuborildi!")
+            print("✅ YouTube video muvaffaqiyatli yuborildi!")
         else:
             await status.edit_text("❌ linkda xatolik bor Iltimos linkni tekshirib qayta yuboring!")
 
@@ -108,7 +108,7 @@ async def link_handler(message: types.Message):
 
 
 async def main():
-    print("🚀 Bot ishga tushdi...")
+    print("🚀 YouTube bot ishga tushdi...")
     await dp.start_polling(bot)
 
 
