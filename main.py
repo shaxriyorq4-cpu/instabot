@@ -28,15 +28,13 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Videoni yuklab olish funksiyasi (format xatolarini to'g'rilash uchun moslashtirilgan)"""
+    """Videoni yuklab olish funksiyasi"""
     try:
         ydl_opts = {
-            # Format topilmasa boshqa formatlarni ham qabul qiladigan qilib o'zgartirildi
-            'format': 'bestvideo+bestaudio/best',
-            'merge_output_format': 'mp4',
+            'format': 'bv*+ba/b / b',
+            'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
-            'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'concurrent_fragment_downloads': 5,
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
@@ -49,14 +47,14 @@ async def download_video(url: str, folder: str):
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-            # Agar birlashtirilgan bo'lsa kengaytmasi mp4 ga o'zgaradi
-            base, _ = os.path.splitext(filename)
-            mp4_filename = base + '.mp4'
-            
-            if os.path.exists(mp4_filename):
-                return mp4_filename
-            elif os.path.exists(filename):
+            if os.path.exists(filename):
                 return filename
+                
+            for f in os.listdir(folder):
+                full_path = os.path.join(folder, f)
+                if os.path.isfile(full_path):
+                    return full_path
+                    
     except Exception as e:
         print(f"Yuklashda xato: {e}")
     return None
@@ -81,7 +79,6 @@ async def link_handler(message: types.Message):
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
             
-            # Videoning tagiga yoziladigan matn
             final_caption = "📥@instadown_v2_bot orqali yuklandi      ✅"
 
             await message.answer_video(
