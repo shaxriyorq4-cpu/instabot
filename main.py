@@ -27,16 +27,17 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """YouTube Shorts videolarini muammosiz yuklab olish funksiyasi"""
+    """YouTube Shorts videolarini cookies yordamida yuklab olish funksiyasi"""
     try:
         ydl_opts = {
-            # Xatolik bermaydigan universal format sozlamasi
             'format': 'best/worst',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
             'geo_bypass': True,
             'nocheckcertificate': True,
+            # Server IP blokerini chetlab o'tish uchun cookies.txt faylini tekshiramiz:
+            'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
                 'youtube': {
                     'player_client': ['android', 'web']
@@ -64,7 +65,6 @@ async def download_video(url: str, folder: str):
 async def link_handler(message: types.Message):
     url = message.text.strip()
     
-    # Faqat YouTube va Shorts havolalarini tekshirish
     if not url.startswith(("http://", "https://")) or ("youtube.com" not in url and "youtu.be" not in url):
         await message.answer("❌ Iltimos faqat YouTube Shorts linkini yuboring!")
         return
@@ -94,7 +94,7 @@ async def link_handler(message: types.Message):
                 pass
             print("✅ Shorts video muvaffaqiyatli yuborildi!")
         else:
-            await status.edit_text("❌ Videoni yuklab bo'lmadi. Linkni tekshirib qayta yuboring!")
+            await status.edit_text("❌ Videoni yuklab bo'lmadi. Serverda cookies.txt fayli borligiga ishonch hosil qiling!")
 
     except Exception as e:
         print(f"Xatolik: {e}")
