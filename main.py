@@ -105,7 +105,8 @@ async def process_link_handler(message: types.Message):
                 elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
                     video_media.append(file_path)
 
-            if photo_media:chunked_photos = [photo_media[i:i + 10] for i in range(0, len(photo_media), 10)]
+            if photo_media:
+                chunked_photos = [photo_media[i:i + 10] for i in range(0, len(photo_media), 10)]
                 for chunk in chunked_photos:
                     media_group = [types.InputMediaPhoto(media=types.FSInputFile(p)) for p in chunk]
                     try:
