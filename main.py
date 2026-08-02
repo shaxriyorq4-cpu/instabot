@@ -21,22 +21,27 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Link yuboring, 3 deganda darhol tashlab beraman. ⚡️")
+    await message.answer("Salom! Link yuboring, video tayyor bo'lishi bilan darhol tashlab beraman. ⚡️")
 
 
-async def get_video_url(url: str):
-    """Orqa fonda yt-dlp orqali videoni qidirish"""
+async def download_video_background(url: str, folder: str):
+    """Videoni orqa fonda maksimal tezlikda yuklab olish"""
     try:
         ydl_opts = {
             'format': 'best[ext=mp4]/best',
             'quiet': True,
             'no_warnings': True,
+            'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
+            'concurrent_fragment_downloads': 5
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            return info.get('url')
-    except:
-        return None
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            if os.path.exists(filename):
+                return filename
+    except Exception as e:
+        print(f"Yuklashda xato: {e}")
+    return None
 
 
 @dp.message()
@@ -47,73 +52,64 @@ async def link_handler(message: types.Message):
         await message.answer("❌ To'g'ri link yuboring.")
         return
 
-    # 1. Havola kelishi bilan birinchi navbatda orqa fonda videoni qidirishni boshlaymiz
-    task = asyncio.create_task(get_video_url(url))
+    user_folder = os.path.join(DOWNLOAD_DIR, str(message.from_user.id))
+    os.makedirs(user_folder, exist_ok=True)
 
-    # 2. Shu zahotiyoq "1" ni chiqaramiz
+    # 1. Videoni orqa fonda darhol yuklashni boshlaymiz
+    download_task = asyncio.create_task(download_video_background(url, user_folder))
+
+    # 2. Sanoq xabarini chiqaramiz
     status = await message.answer("⚡ 1...")
+
+    # Sanoqni va videoning tayyor bo'lishini bir vaqtda kuzatamiz (kim birinchi bo'lsa)
+    # Ya'ni video tezroq yuklansa, darhol tashlanadi va sanoq to'xtatiladi.
     
-    # 0.4 sekund kutib "2" ni chiqaramiz (vaqtni o'zingizga moslab biroz qisqartirdik)
+    # "2" ga o'tamiz
     await asyncio.sleep(0.4)
+    if download_task.done():
+        video_path = await download_task
+        await send_video_and_cleanup(message, status, video_path, user_folder)
+        return
     try:
         await status.edit_text("⚡ 2...")
     except:
         pass
 
-    # Yana 0.4 sekund kutib "3" ni chiqaramiz
+    # "3" ga o'tamiz
     await asyncio.sleep(0.4)
+    if download_task.done():
+        video_path = await download_task
+        await send_video_and_cleanup(message, status, video_path, user_folder)
+        return
     try:
         await status.edit_text("⚡ 3...")
     except:
         pass
 
-    # 3 chiqishi bilan orqa fondagi qidiruv natijasini olamiz (u allaqachon tayyor bo'lgan bo'ladi)
-    direct_url = await task
+    # Agar hali ham yuklanayotgan bo'lsa, oxirigacha kutamiz
+    video_path = await download_task
+    await send_video_and_cleanup(message, status, video_path, user_folder)
 
+
+async def send_video_and_cleanup(message, status, video_path, user_folder):
+    """Videoni yuborish va papkani tozalash yordamchi funksiyasi"""
     try:
-        if direct_url:
-            # 3 chiqishi bilan darhol videoni tashlaymiz
-            await message.answer_video(video=direct_url)
-            await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
-            print("✅ 3 deganda tashlandi!")
-            return
-        
-        # Agar to'g'ridan-to'g'ri link o'xshamasa (zaxira yuklash)
-        status_backup = await message.answer("⏳ Yuklanmoqda...")
-        user_folder = os.path.join(DOWNLOAD_DIR, str(message.from_user.id))
-        os.makedirs(user_folder, exist_ok=True)
-        
-        ydl_opts = {
-            'format': 'best[ext=mp4]/best',
-            'quiet': True,
-            'no_warnings': True,
-            'outtmpl': os.path.join(user_folder, '%(id)s.%(ext)s'),
-            'concurrent_fragment_downloads': 5
-        }
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-        
-        if os.path.exists(filename):
-            video_file = FSInputFile(filename)
+        if video_path and os.path.exists(video_path):
+            video_file = FSInputFile(video_path)
             await message.answer_video(video=video_file, request_timeout=120)
-            await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
+            
             try:
-                await bot.delete_message(chat_id=message.chat.id, message_id=status_backup.message_id)
+                await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
             except:
                 pass
-            shutil.rmtree(user_folder, ignore_errors=True)
+            print("✅ Video tayyor bo'lishi bilan darhol tashlandi!")
         else:
-            await status_backup.edit_text("❌ Video topilmadi.")
-
+            await status.edit_text("❌ Video topilmadi yoki yuklab bo'lmadi.")
     except Exception as e:
-        print("❌ XATOLIK:")
-        traceback.print_exc()
-        try:
-            await status.edit_text("❌ Xatolik yuz berdi.")
-        except:
-            pass
+        print(f"Yuborishda xato: {e}")
+    finally:
+        if os.path.exists(user_folder):
+            shutil.rmtree(user_folder, ignore_errors=True)
 
 
 async def main():
