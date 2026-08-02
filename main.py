@@ -24,7 +24,7 @@ L = instaloader.Instaloader(
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Menga Instagram (post, rasmlar, reel, story) yoki YouTube havolasini yuboring, men uni yuklab beraman.")
+    await message.answer("Salom! Menga Instagram (profil, post, rasmlar, reel, story) yoki YouTube havolasini yuboring, men uni yuklab beraman.")
 
 @dp.message()
 async def process_link_handler(message: types.Message):
@@ -41,7 +41,10 @@ async def process_link_handler(message: types.Message):
     os.makedirs(download_dir, exist_ok=True)
 
     try:
-        # Agar havola Instagram post/rasm bo'lsa va /p/ ni o'z ichiga olsa, instaloader yordamida tortamiz
+        # 1. Agar havola Instagram profil havolasi bo'lsa (istoriyalarni olish uchun yt-dlp ishlatamiz)
+        # yt-dlp profil havolasidan ham istoryalarni tortib bera oladi
+        
+        # 2. Agar post bo'lsa instaloader orqali rasmlarni olish
         if "instagram.com/p/" in url:
             try:
                 shortcode = url.split("/p/")[1].split("/")[0]
@@ -50,7 +53,7 @@ async def process_link_handler(message: types.Message):
             except Exception as inst_err:
                 print(f"Instaloader xatosi: {inst_err}")
 
-        # Qolgan barcha holatlar (Reels, Story, YouTube) uchun yt-dlp ishlatamiz
+        # 3. Asosiy yt-dlp sozlamalari (Profil istoriyalari, Reels va YouTube uchun)
         ydl_opts = {
             'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
             'format': 'best/bestvideo+bestaudio/best',
@@ -70,7 +73,7 @@ async def process_link_handler(message: types.Message):
                 filename = ydl.prepare_filename(info)
                 downloaded_files.append(filename)
 
-        # Papkadagi barcha fayllarni yig'ish
+        # Papkadagi barcha fayllarni to'liq yig'ish
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         for ext in extensions:
             downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
@@ -94,10 +97,10 @@ async def process_link_handler(message: types.Message):
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         else:
             await bot.edit_message_text(
-                "❌ Media topilmadi yoki bu post yopiq.", 
+                "❌ Media yoki istoriyalar topilmadi (Profil yopiq yoki istoryasi yo'q).", 
                 chat_id=message.chat.id, 
                 message_id=processing_msg.message_id
-            )
+        )
 
     except Exception as e:
         error_text = str(e)
