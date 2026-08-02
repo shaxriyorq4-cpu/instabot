@@ -21,41 +21,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Instagram Reel yoki YouTube linkini yuboring.")
-
-
-async def download_video_ytdlp(url: str, folder: str):
-    try:
-        print(f"🔍 [yt-dlp] Video yuklanmoqda: {url}")
-        
-        ydl_opts = {
-            'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
-            'format': 'best[ext=mp4]/best',
-            'quiet': True,
-            'no_warnings': True,
-        }
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            
-            # Agar kengaytmali fayl mavjud bo'lsa
-            if os.path.exists(filename):
-                print(f"✅ [yt-dlp] Muvaffaqiyatli yuklandi: {filename}")
-                return filename
-
-        # Papka ichidan qidirib topish
-        for file in os.listdir(folder):
-            if file.lower().endswith(('.mp4', '.mkv', '.webm')):
-                file_path = os.path.abspath(os.path.join(folder, file))
-                print(f"✅ [yt-dlp] Topilgan fayl: {file_path}")
-                return file_path
-
-    except Exception as e:
-        print(f"❌ XATOLIK [yt-dlp]:")
-        traceback.print_exc()
-
-    return None
+    await message.answer("Salom! Link yuboring, videoni chaqmoq tezligida tashlab beraman. ⚡️")
 
 
 @dp.message()
@@ -66,42 +32,63 @@ async def link_handler(message: types.Message):
         await message.answer("❌ To'g'ri link yuboring.")
         return
 
-    status = await message.answer("⏳ Video yuklanmoqda...")
-
-    user_folder = os.path.join(DOWNLOAD_DIR, str(message.from_user.id))
-    os.makedirs(user_folder, exist_ok=True)
+    # Jarayonni tezlatish uchun yozuvni qisqa qildik
+    status = await message.answer("⚡...")
 
     try:
-        video_path = await download_video_ytdlp(url, user_folder)
-
-        if video_path and os.path.exists(video_path):
-            print(f"📤 Telegramga yuborilmoqda: {video_path}")
-            
-            file_size = os.path.getsize(video_path)
-            if file_size > 50 * 1024 * 1024:
-                await status.edit_text("❌ Video hajmi 50 MB dan katta!")
+        ydl_opts = {
+            'format': 'best[ext=mp4]/best',
+            'quiet': True,
+            'no_warnings': True,
+        }
+        
+        # 1-USUL: ULTRATEZKOR (Skachat qilmasdan linkni o'zini olish)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Faylni tushirmaymiz, faqat ma'lumotlarni o'qiymiz
+            info = ydl.extract_info(url, download=False)
+            direct_url = info.get('url')
+        
+        if direct_url:
+            try:
+                # Telegramga videoning o'zini emas, URL'ini beramiz.
+                # Telegram uni o'zining tezkor serverlarida chaqirib oladi (1-2 sek)
+                await message.answer_video(video=direct_url)
+                await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
+                print("✅ 1 SEKUNDLIK USUL ISHLADI!")
                 return
-
-            video_file = FSInputFile(video_path)
+            except Exception as direct_err:
+                print(f"⚠️ To'g'ridan-to'g'ri tashlash o'xshamadi (Instagram himoyasi). 2-usulga o'tamiz... xato: {direct_err}")
+        
+        # 2-USUL: STANDART TEZKOR (Agar 1-usul ishlamasa)
+        user_folder = os.path.join(DOWNLOAD_DIR, str(message.from_user.id))
+        os.makedirs(user_folder, exist_ok=True)
+        
+        ydl_opts['outtmpl'] = os.path.join(user_folder, '%(id)s.%(ext)s')
+        ydl_opts['concurrent_fragment_downloads'] = 5  # Paralel yuklash
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+        
+        if os.path.exists(filename):
+            video_file = FSInputFile(filename)
             await message.answer_video(video=video_file, request_timeout=120)
-            
-            print("✅ Telegramga yuborildi!")
             await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
+            print("✅ 2-USUL (Yuklab yuborish) orqali ishlandi!")
+            
+            # Faylni o'chiramiz
+            shutil.rmtree(user_folder, ignore_errors=True)
         else:
-            await status.edit_text("❌ Xatolik: Video fayl topilmadi.")
+            await status.edit_text("❌ Video topilmadi.")
 
     except Exception as e:
-        print(f"❌ KRITIK XATO:")
+        print("❌ XATOLIK:")
         traceback.print_exc()
-        await status.edit_text(f"❌ Xato: {e}")
-
-    finally:
-        if os.path.exists(user_folder):
-            shutil.rmtree(user_folder, ignore_errors=True)
+        await status.edit_text("❌ Video yuklashda xatolik yuz berdi.")
 
 
 async def main():
-    print("🤖 Bot ishga tushdi...")
+    print("🚀 Ultratezkor bot ishga tushdi...")
     await dp.start_polling(bot)
 
 
