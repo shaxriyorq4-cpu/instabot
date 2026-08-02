@@ -5,7 +5,7 @@ import traceback
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import FSInputFile, InputMediaVideo
+from aiogram.types import FSInputFile
 
 import instaloader
 
@@ -38,7 +38,6 @@ async def start_handler(message: types.Message):
 
 async def download_instagram_reel(url: str, folder: str):
     try:
-        # Shortcode ni linkdan ajratib olish
         if "/reel/" in url:
             shortcode = url.split("/reel/")[1].split("/")[0]
         elif "/p/" in url:
@@ -51,11 +50,12 @@ async def download_instagram_reel(url: str, folder: str):
         post = instaloader.Post.from_shortcode(L.context, shortcode)
         L.download_post(post, target=folder)
 
-        # Yuklangan papkadan faqat .mp4 faylni qidirib topish
         for root, dirs, files in os.walk(folder):
             for file in files:
                 if file.endswith(".mp4"):
-                    return os.path.abspath(os.path.join(root, file))
+                    file_path = os.path.abspath(os.path.join(root, file))
+                    print(f"✅ Topilgan video fayl: {file_path}")
+                    return file_path
 
     except Exception as e:
         print(f"❌ Xatolik yuz berdi:")
@@ -83,8 +83,22 @@ async def link_handler(message: types.Message):
         if video_path and os.path.exists(video_path):
             print(f"📤 Telegramga yuborilmoqda: {video_path}")
             
+            file_size = os.path.getsize(video_path)
+            print(f"📦 Fayl hajmi: {file_size} bayt")
+
+            if file_size > 50 * 1024 * 1024:
+                await status.edit_text("❌ Video hajmi 50 MB dan katta!")
+                return
+
             video_file = FSInputFile(video_path)
-            await message.answer_video(video=video_file)
+            
+            try:
+                await message.answer_video(video=video_file)
+                print("✅ Telegramga muvaffaqiyatli yuborildi!")
+            except Exception as send_err:
+                print(f"❌ Telegramga yuborishda xato: {send_err}")
+                await status.edit_text(f"❌ Yuborishda xato: {send_err}")
+                return
             
             await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
         else:
