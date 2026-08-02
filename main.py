@@ -106,7 +106,7 @@ async def process_link_handler(message: types.Message):
             for file_path in downloaded_files:
                 # Hajmi 1KB dan katta bo'lgan barcha rasmlarni qo'shamizif file_path.endswith(('.jpg', '.jpeg', '.png', '.webp', '.heic')) and os.path.getsize(file_path) > 1024:
                     photo_media.append(file_path)
-                elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
+            elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
                     video_media.append(file_path)
 
             if photo_media:
