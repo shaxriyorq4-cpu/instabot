@@ -22,9 +22,7 @@ L = instaloader.Instaloader(
     download_geotags=False,
     download_comments=False,
     save_metadata=False,
-    compress_json=False,
-    dirname_pattern=DOWNLOAD_DIR,
-    filename_pattern="{shortcode}_{index}"
+    compress_json=False
 )
 
 @dp.message(Command("start"))
