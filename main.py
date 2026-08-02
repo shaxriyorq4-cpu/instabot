@@ -1,18 +1,29 @@
 import os
 import glob
-import time
+import shutil
 import asyncio
+
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
+
 import yt_dlp
 import instaloader
+
 
 TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Instaloader ni rasmlar uchun sozlash
+
+DOWNLOAD_ROOT = "downloads"
+
+os.makedirs(
+    DOWNLOAD_ROOT,
+    exist_ok=True
+)
+
+
 L = instaloader.Instaloader(
     download_videos=False,
     download_video_thumbnails=False,
@@ -22,108 +33,342 @@ L = instaloader.Instaloader(
     compress_json=False
 )
 
+
+
 @dp.message(Command("start"))
-async def start_handler(message: types.Message):
-    await message.answer("Salom! Menga Instagram (post, rasmlar, reel, story) yoki YouTube havolasini yuboring, men uni yuklab beraman.")
+async def start_handler(
+    message: types.Message
+):
 
-@dp.message()
-async def process_link_handler(message: types.Message):
-    url = message.text.strip()
-    
-    if not (url.startswith("http://") or url.startswith("https://")):
-        await message.answer("❌ Iltimos, to'g'ri havola yuboring!")
-        return
+    await message.answer(
+        "Salom! 👋\n\n"
+        "Instagram yoki YouTube havolasini yuboring.\n"
+        "Media faylni yuklab beraman."
+    )
 
-    processing_msg = await message.answer("⏳ Yuklab olinmoqda, biroz kuting...")
-    
-    downloaded_files = []
-    download_dir = f"downloads_{message.from_user.id}"
-    os.makedirs(download_dir, exist_ok=True)
 
-    try:
-        # Agar havola Instagram post/rasm bo'lsa va /p/ ni o'z ichiga olsa, instaloader yordamida tortamiz
-        if "instagram.com/p/" in url:
-            try:
-                shortcode = url.split("/p/")[1].split("/")[0]
-                post = instaloader.Post.from_shortcode(L.context, shortcode)
-                L.download_post(post, target=download_dir)
-            except Exception as inst_err:
-                print(f"Instaloader xatosi: {inst_err}")
 
-        # Qolgan barcha holatlar (Reels, Story, YouTube) uchun yt-dlp ishlatamiz
-        ydl_opts = {
-            'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
-            'format': 'best/bestvideo+bestaudio/best',
-            'cookiefile': 'cookies.txt',
-            'ignoreerrors': True,
-            'quiet': True,
-        }
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            if info and 'entries' in info:
-                for entry in info['entries']:
-                    if entry:
-                        filename = ydl.prepare_filename(entry)
-                        downloaded_files.append(filename)
-            elif info:
-                filename = ydl.prepare_filename(info)
-                downloaded_files.append(filename)
+def get_files(folder):
 
-        # Papkadagi barcha fayllarni yig'ish
-        extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
-        for ext in extensions:
-            downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
+    files = []
 
-        # Unikal fayllarni to'plash
-        downloaded_files = sorted(list(set([os.path.abspath(f) for f in downloaded_files if os.path.exists(f)])))
+    extensions = (
+        "*.jpg",
+        "*.jpeg",
+        "*.png",
+        "*.webp",
+        "*.mp4",
+        "*.mov",
+        "*.mkv",
+        "*.webm"
+    )
 
-        if downloaded_files:
-            for file_path in downloaded_files:
-                try:
-                    if file_path.endswith(('.jpg', '*.jpeg', '*.png', '*.webp')):
-                        media_file = types.FSInputFile(file_path)
-                        await message.answer_photo(photo=media_file)
-                    elif file_path.endswith(('.mp4', '*.mov', '*.mkv', '*.webm')):
-                        media_file = types.FSInputFile(file_path)
-                        await message.answer_video(video=media_file)
-                    time.sleep(1)
-                except Exception as file_err:
-                    print(f"Faylni yuborishda xatolik: {file_err}")
-            
-            await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
-        else:
-            await bot.edit_message_text(
-                "❌ Media topilmadi yoki bu post yopiq.", 
-                chat_id=message.chat.id, 
-                message_id=processing_msg.message_id
+
+    for ext in extensions:
+
+        files.extend(
+            glob.glob(
+                os.path.join(
+                    folder,
+                    ext
+                )
             )
-
-    except Exception as e:
-        error_text = str(e)
-        print(f"ANIQ XATOLIK: {error_text}")
-        
-        await bot.edit_message_text(
-            f"❌ **Xatolik yuz berdi!**\n\n"
-            f"🛠 Sabab: `{error_text}`", 
-            chat_id=message.chat.id, 
-            message_id=processing_msg.message_id,
-            parse_mode="Markdown"
         )
 
-    finally:
-        for file_path in glob.glob(os.path.join(download_dir, '*.*')):
-            try:
-                os.remove(file_path)
-            except:
-                pass
+
+    return [
+        os.path.abspath(file)
+        for file in files
+        if os.path.exists(file)
+    ]
+
+
+
+async def download_instagram_post(
+    url,
+    folder
+):
+
+    try:
+
+        shortcode = (
+            url
+            .split("/p/")[1]
+            .split("/")[0]
+        )
+
+
+        post = instaloader.Post.from_shortcode(
+            L.context,
+            shortcode
+        )
+
+
+        L.download_post(
+            post,
+            target=folder
+        )
+
+
+    except Exception as e:
+
+        print(
+            "Instagram post xatosi:",
+            e
+        )
+
+
+
+async def download_media(
+    url,
+    folder
+):
+
+    files = []
+
+
+    if "instagram.com/p/" in url:
+
+        await download_instagram_post(
+            url,
+            folder
+        )
+
+
+
+    ydl_options = {
+
+        "outtmpl":
+        f"{folder}/%(id)s_%(autonumber)s.%(ext)s",
+
+        "format":
+        "best/bestvideo+bestaudio/best",
+
+        "cookiefile":
+        "cookies.txt",
+
+        "ignoreerrors":
+        True,
+
+        "quiet":
+        True
+    }
+
+
+
+    try:
+
+        with yt_dlp.YoutubeDL(
+            ydl_options
+        ) as ydl:
+
+            ydl.extract_info(
+                url,
+                download=True
+            )
+
+
+    except Exception as e:
+
+        print(
+            "Yuklash xatosi:",
+            e
+        )
+
+
+
+    files = get_files(
+        folder
+    )
+
+
+    return files
+
+
+
+async def send_files(
+    message,
+    files
+):
+
+
+    for file in files:
+
         try:
-            os.rmdir(download_dir)
-        except:
-            pass
+
+            ext = file.lower()
+
+
+            if ext.endswith(
+                (
+                    ".jpg",
+                    ".jpeg",
+                    ".png",
+                    ".webp"
+                )
+            ):
+
+                await message.answer_photo(
+                    photo=types.FSInputFile(
+                        file
+                    )
+                )
+
+
+            elif ext.endswith(
+                (
+                    ".mp4",
+                    ".mov",
+                    ".mkv",
+                    ".webm"
+                )
+            ):
+
+                size = os.path.getsize(
+                    file
+                )
+
+
+                if size <= 50 * 1024 * 1024:
+
+                    await message.answer_video(
+                        video=types.FSInputFile(
+                            file
+                        )
+                    )
+
+                else:
+
+                    await message.answer(
+                        "❌ Video 50 MB dan katta."
+                    )
+
+
+            await asyncio.sleep(
+                1
+            )
+
+
+        except Exception as e:
+
+            print(
+                "Yuborish xatosi:",
+                e
+            )
+
+
+
+@dp.message()
+async def process_link_handler(
+    message: types.Message
+):
+
+    url = message.text.strip()
+
+
+    if not url.startswith(
+        (
+            "http://",
+            "https://"
+        )
+    ):
+
+        await message.answer(
+            "❌ To'g'ri havola yuboring."
+        )
+
+        return
+
+
+
+    status = await message.answer(
+        "⏳ Yuklanmoqda..."
+    )
+
+
+
+    user_folder = os.path.join(
+        DOWNLOAD_ROOT,
+        str(message.from_user.id)
+    )
+
+
+    os.makedirs(
+        user_folder,
+        exist_ok=True
+    )
+
+
+
+    try:
+
+
+        files = await download_media(
+            url,
+            user_folder
+        )
+
+
+        if files:
+
+            await send_files(
+                message,
+                files
+            )
+
+
+            await bot.delete_message(
+                chat_id=message.chat.id,
+                message_id=status.message_id
+            )
+
+
+        else:
+
+            await status.edit_text(
+                "❌ Media topilmadi."
+            )
+
+
+
+    except Exception as e:
+
+        print(
+            "Asosiy xato:",
+            e
+        )
+
+
+        await status.edit_text(
+            f"❌ Xatolik:\n{e}"
+        )
+
+
+
+    finally:
+
+
+        if os.path.exists(
+            user_folder
+        ):
+
+            shutil.rmtree(
+                user_folder,
+                ignore_errors=True
+            )
+
+
 
 async def main():
-    await dp.start_polling(bot)
 
-if __name__ == '__main__':
-    asyncio.run(main())
+    await dp.start_polling(
+        bot
+    )
+
+
+
+if __name__ == "__main__":
+
+    asyncio.run(
+        main()
+    )
