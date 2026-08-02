@@ -10,7 +10,7 @@ from aiogram.types import FSInputFile
 import instaloader
 
 
-TOKEN = "8915219066:AAHv2SbrPqW_Tx2eU-zNcLEvYEO5wpgSRWU"
+TOKEN = "8915219066:AAGSCkzvFImev5HLBdOMqv-q8CWjraGnsHg"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
