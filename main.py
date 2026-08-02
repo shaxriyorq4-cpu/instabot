@@ -17,7 +17,6 @@ def instagram_bot_yuklash():
         return
 
     # 1. Istoriyaga qo'yiladigan rasmlar ro'yxati 
-    # (Agar fayl nomlari yoki yo'llari xato bo'lsa, shu yerdan o'zgartirasiz)
     stories_photos = [
         "story1.jpg", 
         "story2.jpg", 
@@ -30,13 +29,12 @@ def instagram_bot_yuklash():
         "video2.mp4"
     ]
 
-    # XATOLIKNI OLDINI OLISH: Ro'yxatdagi bir xil elementlarni (dublikatni) tozalab tashlaymiz
+    # XATOLIKNI OLDINI OLISH: Ro'yxatdagi dublikatlarni (takroriy fayllarni) tozalaymiz
     stories_photos = list(dict.fromkeys(stories_photos))
     videos = list(dict.fromkeys(videos))
 
     print("\n--- Istoriyalarni yuklash boshlandi ---")
     for photo in stories_photos:
-        # Fayl kompyuterda mavjudligini tekshiramiz (Rasm tashlamaslik muammosi asosan shundan kelib chiqadi)
         if os.path.exists(photo):
             try:
                 cl.photo_to_story(photo)
@@ -48,10 +46,8 @@ def instagram_bot_yuklash():
 
     print("\n--- Videolarni yuklash boshlandi ---")
     for video in videos:
-        # Fayl mavjudligini tekshiramiz
         if os.path.exists(video):
             try:
-                # Agar video istoriyaga tushishi kerak bo'lsa:
                 cl.video_upload_to_story(video)
                 print(f"[+] Video istoriyaga yuklandi: {video}")
             except Exception as e:
