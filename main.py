@@ -5,11 +5,22 @@ import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 import yt_dlp
+import instaloader
 
 TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
+
+# Instaloader ni rasmlar uchun sozlash
+L = instaloader.Instaloader(
+    download_videos=False,
+    download_video_thumbnails=False,
+    download_geotags=False,
+    download_comments=False,
+    save_metadata=False,
+    compress_json=False
+)
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
@@ -30,12 +41,21 @@ async def process_link_handler(message: types.Message):
     os.makedirs(download_dir, exist_ok=True)
 
     try:
+        # Agar havola Instagram post/rasm bo'lsa va /p/ ni o'z ichiga olsa, instaloader yordamida tortamiz
+        if "instagram.com/p/" in url:
+            try:
+                shortcode = url.split("/p/")[1].split("/")[0]
+                post = instaloader.Post.from_shortcode(L.context, shortcode)
+                L.download_post(post, target=download_dir)
+            except Exception as inst_err:
+                print(f"Instaloader xatosi: {inst_err}")
+
+        # Qolgan barcha holatlar (Reels, Story, YouTube) uchun yt-dlp ishlatamiz
         ydl_opts = {
             'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
             'format': 'best/bestvideo+bestaudio/best',
             'cookiefile': 'cookies.txt',
             'ignoreerrors': True,
-            'writethumbnail': True,  # Agar faqat rasm bo'lsa, thumbnail (muqova/rasm) sifatida tortib olish uchun
             'quiet': True,
         }
         
@@ -50,7 +70,7 @@ async def process_link_handler(message: types.Message):
                 filename = ydl.prepare_filename(info)
                 downloaded_files.append(filename)
 
-        # Papkadagi barcha rasm va video formatlarini kengaytirilgan holda qidirib topish
+        # Papkadagi barcha fayllarni yig'ish
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         for ext in extensions:
             downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
@@ -73,8 +93,11 @@ async def process_link_handler(message: types.Message):
             
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         else:
-            await message.answer("❌ Kechirasiz, bu postdagi rasmlarni yuklab bo'lmadi. Havola ochiqligini tekshiring.")
-            await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
+            await bot.edit_message_text(
+                "❌ Media topilmadi yoki bu post yopiq.", 
+                chat_id=message.chat.id, 
+                message_id=processing_msg.message_id
+            )
 
     except Exception as e:
         error_text = str(e)
