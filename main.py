@@ -17,7 +17,7 @@ DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 L = instaloader.Instaloader(
-    download_videos=False,
+    download_videos=True,
     download_video_thumbnails=False,
     download_geotags=False,
     download_comments=False,
