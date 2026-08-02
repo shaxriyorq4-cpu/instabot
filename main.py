@@ -20,7 +20,6 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    # 1. Start bosgandagi xabar
     text = (
         "Salom! @instadown_v2_bot ga xush kelibsiz. 🤝\n"
         "ishni boshlaymizmi!"
@@ -29,7 +28,7 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Videoni va uning original matnini (caption) yuklab olish"""
+    """Videoni yuklab olish funksiyasi"""
     try:
         ydl_opts = {
             'format': 'best[ext=mp4]/best',
@@ -41,42 +40,34 @@ async def download_video(url: str, folder: str):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
-            # Instagram postining original matnini olamiz
-            original_caption = info.get('description', '')
             if os.path.exists(filename):
-                return filename, original_caption
+                return filename
     except Exception as e:
         print(f"Yuklashda xato: {e}")
-    return None, None
+    return None
 
 
 @dp.message()
 async def link_handler(message: types.Message):
     url = message.text.strip()
     
-    # Agar xabar link bilan boshlanmasa
     if not url.startswith(("http://", "https://")):
-        # 2. Link bo'lmasa yoziladigan xabar
         await message.answer("❌ Iltimos linkni tekshirib qayta yuboring!")
         return
 
-    # 3. Qum soat aylanib turishi uchun xabar
     status = await message.answer("⏳")
 
     user_folder = os.path.join(DOWNLOAD_DIR, str(message.from_user.id))
     os.makedirs(user_folder, exist_ok=True)
 
     try:
-        # Videoni va uning matnini yuklab olamiz
-        video_path, original_caption = await download_video(url, user_folder)
+        video_path = await download_video(url, user_folder)
 
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
             
-            # 4. Videoning o'zi bilan birga original matni va "Marxamat buyurtmangiz ✅" yozuvi
-            final_caption = f"Marxamat buyurtmangiz ✅"
-            if original_caption:
-                final_caption = f"{original_caption}\n\nMarxamat buyurtmangiz ✅"
+            # Videoning tagiga yoziladigan yangi matn
+            final_caption = "📥@instadown_v2_bot orqali yuklandi     ✅"
 
             await message.answer_video(
                 video=video_file, 
@@ -84,20 +75,17 @@ async def link_handler(message: types.Message):
                 request_timeout=120
             )
             
-            # Qum soatni o'chiramiz
             try:
                 await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
             except:
                 pass
             print("✅ Video muvaffaqiyatli yuborildi!")
         else:
-            # 5. Linkda xatolik bo'lsa yoki video topilmasa
             await status.edit_text("❌ linkda xatolik bor Iltimos linkni tekshirib qayta yuboring!")
 
     except Exception as e:
         print(f"Xatolik: {e}")
         try:
-            # 5. Har qanday xatolik holatida ham
             await status.edit_text("❌ linkda xatolik bor Iltimos linkni tekshirib qayta yuboring!")
         except:
             pass
