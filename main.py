@@ -28,18 +28,21 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """YouTube va Shorts videolarini yuklab olish funksiyasi"""
+    """Faqat YouTube va Shorts videolarini ishonchli yuklab olish funksiyasi"""
     try:
         ydl_opts = {
-            'format': 'best',
+            'format': 'bestvideo+bestaudio/best',
+            'merge_output_format': 'mp4',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
+            'geo_bypass': True,
+            'nocheckcertificate': True,
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
+            # YouTube bot ekanligini sezmasligi uchun eng yangi mijoz sozlamalari
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'web'],
-                    'skip': ['hls', 'dash']
+                    'player_client': ['ios', 'android', 'web'],
                 }
             }
         }
@@ -47,7 +50,13 @@ async def download_video(url: str, folder: str):
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-            if os.path.exists(filename):
+            # Agar formatlar birlashtirilgan bo'lsa kengaytmasi mp4 bo'ladi
+            base, _ = os.path.splitext(filename)
+            mp4_filename = base + '.mp4'
+            
+            if os.path.exists(mp4_filename):
+                return mp4_filename
+            elif os.path.exists(filename):
                 return filename
                 
             for f in os.listdir(folder):
@@ -64,8 +73,8 @@ async def download_video(url: str, folder: str):
 async def link_handler(message: types.Message):
     url = message.text.strip()
     
-    if not url.startswith(("http://", "https://")):
-        await message.answer("❌ Iltimos YouTube linkini tekshirib qayta yuboring!")
+    if not url.startswith(("http://", "https://")) or ("youtube.com" not in url and "youtu.be" not in url):
+        await message.answer("❌ Iltimos faqat YouTube yoki Shorts linkini yuboring!")
         return
 
     status = await message.answer("⏳")
@@ -93,12 +102,12 @@ async def link_handler(message: types.Message):
                 pass
             print("✅ YouTube video muvaffaqiyatli yuborildi!")
         else:
-            await status.edit_text("❌ linkda xatolik bor Iltimos linkni tekshirib qayta yuboring!")
+            await status.edit_text("❌ Videoni yuklab bo'lmadi. Linkni yoki YouTube ruxsatlarini tekshiring!")
 
     except Exception as e:
         print(f"Xatolik: {e}")
         try:
-            await status.edit_text("❌ linkda xatolik bor Iltimos linkni tekshirib qayta yuboring!")
+            await status.edit_text("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring!")
         except:
             pass
 
