@@ -99,7 +99,7 @@ async def process_link_handler(message: types.Message):
             )
 
     except Exception as e:print(f"ASOSIY XATOLIK: {str(e)}")
-        await bot.edit_message_text(
+            await bot.edit_message_text(
             f"❌ **Xatolik yuz berdi!**\n\n"
             f"🛠 Tafsilot: `{str(e)}`", 
             chat_id=message.chat.id, 
