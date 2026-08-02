@@ -221,6 +221,7 @@ async def send_media_group(
 
     for file in files:
         ext = file.lower()
+
         if ext.endswith(
             (".jpg", ".jpeg", ".png", ".webp")
         ):
@@ -229,23 +230,24 @@ async def send_media_group(
                     media=FSInputFile(file)
                 )
             )
-    elif ext.endswith(
-        (".mp4", ".mov", ".mkv", ".webm")
-):
-        size = os.path.getsize(file)
 
-        if size < 50 * 1024 * 1024:
-            media.append(
-                InputMediaVideo(
-                    media=FSInputFile(
-                        path=file
+        elif ext.endswith(
+            (".mp4", ".mov", ".mkv", ".webm")
+        ):
+            size = os.path.getsize(file)
+
+            if size < 50 * 1024 * 1024:
+                media.append(
+                    InputMediaVideo(
+                        media=FSInputFile(
+                            path=file
+                        )
                     )
                 )
-            )
-    else:
-        await message.answer(
-            "❌ Video 50 MB dan katta."
-        )
+            else:
+                await message.answer(
+                    "❌ Video 50 MB dan katta."
+                )
 
     if not media:
         await message.answer(
