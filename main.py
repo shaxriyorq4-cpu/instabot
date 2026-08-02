@@ -36,6 +36,7 @@ async def process_link_handler(message: types.Message):
             'format': 'best/bestvideo+bestaudio/best',
             'ignoreerrors': True,
             'quiet': True,
+            'writethumbnail': True, # Rasmlarni ham qo'shib tortib olish uchun
         }
 
         if os.path.exists("cookies.txt"):
@@ -45,7 +46,7 @@ async def process_link_handler(message: types.Message):
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.extract_info(url, download=True)
         except Exception as e:
-            error_log += f"\n- Yuklab olish xatosi: {str(e)}"
+            error_log += f"\n- {str(e)}"
 
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         found_files = []
@@ -58,7 +59,8 @@ async def process_link_handler(message: types.Message):
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
             for file_path in downloaded_files:
                 try:
-                    if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                    # Kichik hajmli rasmlar (thumbnail) tashlab yuborilishini oldini olish uchun shart
+                    if file_path.endswith(('.jpg', '*.jpeg', '.png', '.webp')) and os.path.getsize(file_path) > 1024:
                         await message.answer_photo(photo=types.FSInputFile(file_path))
                     elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
                         await message.answer_video(video=types.FSInputFile(file_path))
@@ -66,10 +68,11 @@ async def process_link_handler(message: types.Message):
                 except Exception as file_err:
                     print(f"Yuborish xatosi: {file_err}")
         else:
-            err_details = error_log if error_log else "Media fayllari topilmadi yoki havola yaroqsiz."
+            # ANIQ XATONI KO'RSATISH: yt-dlp yoki boshqa xatolik nima bo'lsa to'g'ridan-to'g'ri chiqadi
+            err_details = error_log if error_log.strip() else "Media fayllari topilmadi yoki havola yaroqsiz."
             await bot.edit_message_text(
-                f"❌ **Yuklab bo'lmadi!**\n"
-                f"🔍 Aniqlangan sabab: `{err_details}`", 
+                f"❌ **Yuklab bo'lmadi!**\n\n"
+                f"🔍 **Aniq xato:**\n`{err_details}`", 
                 chat_id=message.chat.id,
                 message_id=processing_msg.message_id,
                 parse_mode="Markdown"
