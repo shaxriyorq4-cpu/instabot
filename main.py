@@ -43,6 +43,7 @@ async def download_instagram_reel(url: str, folder: str):
         elif "/p/" in url:
             shortcode = url.split("/p/")[1].split("/")[0]
         else:
+            print("❌ XATOLIK: Havola turi noto'g'ri (reel yoki p topilmadi).")
             return None
 
         print(f"🔍 Reel yuklanmoqda. Shortcode: {shortcode}")
@@ -58,7 +59,7 @@ async def download_instagram_reel(url: str, folder: str):
                     return file_path
 
     except Exception as e:
-        print(f"❌ Xatolik yuz berdi:")
+        print(f"❌ INSTAGRAM YUKLASHDA XATOLIK:")
         traceback.print_exc()
 
     return None
@@ -81,31 +82,35 @@ async def link_handler(message: types.Message):
         video_path = await download_instagram_reel(url, user_folder)
 
         if video_path and os.path.exists(video_path):
-            print(f"📤 Telegramga yuborilmoqda: {video_path}")
+            print(f"📤 Telegramga tayyorlanmoqda: {video_path}")
             
             file_size = os.path.getsize(video_path)
             print(f"📦 Fayl hajmi: {file_size} bayt")
 
             if file_size > 50 * 1024 * 1024:
+                print("❌ XATOLIK: Video hajmi 50 MB dan katta!")
                 await status.edit_text("❌ Video hajmi 50 MB dan katta!")
                 return
 
             video_file = FSInputFile(video_path)
             
             try:
-                await message.answer_video(video=video_file)
+                print("📤 Telegramga yuborish boshlandi...")
+                await message.answer_video(video=video_file, request_timeout=120)
                 print("✅ Telegramga muvaffaqiyatli yuborildi!")
             except Exception as send_err:
-                print(f"❌ Telegramga yuborishda xato: {send_err}")
+                print(f"❌ TELEGRAMGA YUBORISHDA ANIQLangan XATO:")
+                traceback.print_exc()
                 await status.edit_text(f"❌ Yuborishda xato: {send_err}")
                 return
             
             await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
         else:
+            print("❌ XATOLIK: Video fayl topilmadi yoki yuklab bo'lmadi.")
             await status.edit_text("❌ Video topilmadi yoki yuklab bo'lmadi.")
 
     except Exception as e:
-        print(f"❌ Kritik xato:")
+        print(f"❌ KRITIK XATO (link_handler):")
         traceback.print_exc()
         await status.edit_text(f"❌ Xatolik yuz berdi:\n{e}")
 
@@ -115,7 +120,7 @@ async def link_handler(message: types.Message):
 
 
 async def main():
-    print("🤖 Bot ishga tushdi...")
+    print("🤖 Bot ishga tushdi va xabarlarni kutmoqda...")
     await dp.start_polling(bot)
 
 
