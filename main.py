@@ -32,9 +32,10 @@ async def process_link_handler(message: types.Message):
     try:
         ydl_opts = {
             'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
-            'format': 'best/bestvideo+bestaudio',
+            'format': 'best/bestvideo+bestaudio/best',
             'cookiefile': 'cookies.txt',
-            'ignoreerrors': False,  # Xatoni yashirmasdan to'g'ridan-to'g'ri tutib olish uchun False qilindi
+            'ignoreerrors': True,  # Video topilmasa ham rasmlarni yuklab berishda davom etishi uchun
+            'writethumbnail': False,
             'quiet': True,
         }
         
@@ -49,12 +50,12 @@ async def process_link_handler(message: types.Message):
                 filename = ydl.prepare_filename(info)
                 downloaded_files.append(filename)
 
-        # Barcha yuklangan fayllarni topish
+        # Papkadagi barcha rasm va videolarni to'liq terib olish
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         for ext in extensions:
             downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
 
-        # Unikal fayllarni to'plash
+        # Unikal fayllarni saralash
         downloaded_files = sorted(list(set([os.path.abspath(f) for f in downloaded_files if os.path.exists(f)])))
 
         if downloaded_files:
@@ -73,7 +74,7 @@ async def process_link_handler(message: types.Message):
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         else:
             await bot.edit_message_text(
-                "❌ Media topilmadi yoki bu kontent maxfiy / yopiq.", 
+                "❌ Media topilmadi yoki bu post faqat rasmdan iborat bo'lib, uni o'qishda cheklov bor.", 
                 chat_id=message.chat.id, 
                 message_id=processing_msg.message_id
             )
