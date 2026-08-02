@@ -43,7 +43,14 @@ async def process_link_handler(message: types.Message):
     try:
         if "/p/" in url or "/reel/" in url or "/tv/" in url:
             try:
-                shortcode = url.split("/p/")[1].split("/")[0]
+                # Agar /p/ bo'lmasa, shortcode ni boshqacha usulda olib bo'lmay qolmasligi uchun xavfsiz qilamiz
+                if "/p/" in url:
+                    shortcode = url.split("/p/")[1].split("/")[0]
+                elif "/reel/" in url:
+                    shortcode = url.split("/reel/")[1].split("/")[0]
+                else:
+                    shortcode = url.split("/tv/")[1].split("/")[0]
+                    
                 post = instaloader.Post.from_shortcode(L.context, shortcode)
                 L.download_post(post, target=download_dir)
             except Exception as e:
@@ -65,11 +72,11 @@ async def process_link_handler(message: types.Message):
 
         else:
             ydl_opts = {
-            'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
-            'format': 'best/bestvideo+bestaudio/best',
-            'ignoreerrors': True,
-            'quiet': True,
-}
+                'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
+                'format': 'best/bestvideo+bestaudio/best',
+                'ignoreerrors': True,
+                'quiet': True,
+            }
 
             if os.path.exists("cookies.txt"):
                 ydl_opts["cookiefile"] = "cookies.txt"
@@ -82,7 +89,7 @@ async def process_link_handler(message: types.Message):
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         found_files = []
         for ext in extensions:
-            found_files.extend(glob.glob(os.path.join(download_dir, "**", ext), recursive=True))
+            found_files.extend(glob.glob(os.path.join(download_dir, '**', ext), recursive=True))
 
         downloaded_files = sorted(list(set([os.path.abspath(f) for f in found_files if os.path.exists(f)])))
 
