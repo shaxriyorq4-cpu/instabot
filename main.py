@@ -55,37 +55,18 @@ async def link_handler(message: types.Message):
         await message.answer("❌ Iltimos linkni tekshirib qayta yuboring!")
         return
 
-    # Qum soatni aylantirib turish uchun boshlang'ich belgilar
     status = await message.answer("⏳")
 
     user_folder = os.path.join(DOWNLOAD_DIR, str(message.from_user.id))
     os.makedirs(user_folder, exist_ok=True)
 
-    # Videoni orqa fonda yuklashni boshlaymiz
-    download_task = asyncio.create_task(download_video(url, user_folder))
-
-    # Qum soat soat millaridek aylanib turishi uchun kadrlar (soat stikerlari aylanish effekti)
-    clock_frames = ["🕛", "🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚"]
-    
-    # Video yuklanguncha qum soatni aylantirib turamiz
-    frame_idx = 0
-    while not download_task.done():
-        try:
-            # Har 0.3 sekundda qum soat ko'rinishini almashtirib turamiz (aylanish effekti)
-            frame = clock_frames[frame_idx % len(clock_frames)]
-            await status.edit_text(frame)
-            frame_idx += 1
-        except:
-            pass
-        await asyncio.sleep(0.3)
-
-    # Yuklanish tugagach natijani olamiz
-    video_path = await download_task
-
     try:
+        video_path = await download_video(url, user_folder)
+
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
             
+            # Videoning tagiga yoziladigan yangi matn
             final_caption = "📥@instadown_v2_bot orqali yuklandi     ✅"
 
             await message.answer_video(
