@@ -4,22 +4,12 @@ import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 import yt_dlp
-import instaloader
 import shutil
 
 TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-
-L = instaloader.Instaloader(
-    download_videos=True,
-    download_video_thumbnails=False,
-    download_geotags=False,
-    download_comments=False,
-    save_metadata=False,
-    compress_json=False
-)
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
@@ -41,53 +31,21 @@ async def process_link_handler(message: types.Message):
     error_log = ""
 
     try:
-        success_insta = False
+        ydl_opts = {
+            'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
+            'format': 'best/bestvideo+bestaudio/best',
+            'ignoreerrors': False, # Xatoni ushlab olish uchun False qilindi
+            'quiet': True,
+        }
+
+        if os.path.exists("cookies.txt"):
+            ydl_opts["cookiefile"] = "cookies.txt"
+        
         try:
-            if "/p/" in url or "/reel/" in url or "/tv/" in url:
-                if "/p/" in url:
-                    shortcode = url.split("/p/")[1].split("/")[0]
-                elif "/reel/" in url:
-                    shortcode = url.split("/reel/")[1].split("/")[0]
-                else:
-                    shortcode = url.split("/tv/")[1].split("/")[0]
-                    
-                post = instaloader.Post.from_shortcode(L.context, shortcode)
-                L.download_post(post, target=download_dir)
-                success_insta = True
-
-            elif "instagram.com/" in url and not any(x in url for x in ["/p/", "/reel/", "/tv/"]):
-                parts = [p for p in url.split("/") if p]
-                if len(parts) >= 3:
-                    username = parts[-1]
-                    if username in ["instagram.com", "www.instagram.com"]:
-                        username = parts[-2]
-                    try:
-                        profile = instaloader.Profile.from_username(L.context, username)
-                        for story in L.get_stories([profile.userid]):
-                            for item in story.get_items():
-                                L.download_storyitem(item, target=download_dir)
-                        success_insta = True
-                    except Exception as limit_err:
-                        error_log += f"\n- Story limiti (429): Instagram vaqtincha blokladi."
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.extract_info(url, download=True)
         except Exception as e:
-            error_log += f"\n- Instaloader xatosi: {str(e)}"
-
-        if not success_insta or not glob.glob(os.path.join(download_dir, '**', '*.*'), recursive=True):
-            ydl_opts = {
-                'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
-                'format': 'best/bestvideo+bestaudio/best',
-                'ignoreerrors': True,
-                'quiet': True,
-            }
-
-            if os.path.exists("cookies.txt"):
-                ydl_opts["cookiefile"] = "cookies.txt"
-            
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    ydl.extract_info(url, download=True)
-            except Exception as e:
-                error_log += f"\n- Yt-dlp xatosi: {str(e)}"
+            error_log = str(e) # Aniq xato matnini yozib olamiz
 
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.heic', '*.mp4', '*.mov', '*.mkv', '*.webm')
         found_files = []
@@ -125,10 +83,11 @@ async def process_link_handler(message: types.Message):
                     print(f"Video yuborish xatosi: {e}")
 
         else:
-            err_details = error_log if error_log.strip() else "Media fayllari topilmadi yoki havola yaroqsiz."
+            # Qanday xatolik yuz berganini to'g'ridan-to'g'ri foydalanuvchiga chiqaramiz
+            err_details = error_log if error_log else "Fayl topilmadi yoki havola yaroqsiz."
             await bot.edit_message_text(
                 f"❌ **Yuklab bo'lmadi!**\n\n"
-                f"🔍 **Sabab:**\n`{err_details}`", 
+                f"🔍 **Aniq xato:**\n`{err_details}`", 
                 chat_id=message.chat.id,
                 message_id=processing_msg.message_id,
                 parse_mode="Markdown"
@@ -138,7 +97,7 @@ async def process_link_handler(message: types.Message):
         print(f"ASOSIY XATOLIK: {str(e)}")
         await bot.edit_message_text(
             f"❌ **Xatolik yuz berdi!**\n\n"
-            f"🛠 Sabab: `{str(e)}`", 
+            f"🛠 Tafsilot: `{str(e)}`", 
             chat_id=message.chat.id, 
             message_id=processing_msg.message_id,
             parse_mode="Markdown"
