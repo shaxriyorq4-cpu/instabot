@@ -4,7 +4,6 @@ import time
 import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-import instaloader
 import yt_dlp
 
 TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
@@ -12,32 +11,9 @@ TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-L = instaloader.Instaloader(
-    download_videos=True,
-    download_video_thumbnails=False,
-    download_geotags=False,
-    download_comments=False,
-    save_metadata=False,
-    compress_json=False,
-    request_timeout=20
-)
-
-IG_USERNAME = "instadown_v2_bot"
-IG_PASSWORD = "Instadownv2"
-
-try:
-    if IG_USERNAME and IG_USERNAME != "SIZNING_LOGININGIZ":
-        try:
-            L.load_session_from_file(IG_USERNAME)
-        except Exception:
-            L.login(IG_USERNAME, IG_PASSWORD)
-            L.save_session_to_file()
-except Exception as e:
-    print(f"Instagram login xatosi: {e}")
-
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Menga Instagram (post, reel, story, cheklangan kontent) yoki YouTube havolasini yuboring, men uni yuklab beraman.")
+    await message.answer("Salom! Menga Instagram (post, reel, story) yoki YouTube havolasini yuboring, men uni yuklab beraman.")
 
 @dp.message()
 async def process_link_handler(message: types.Message):
@@ -54,78 +30,43 @@ async def process_link_handler(message: types.Message):
     os.makedirs(download_dir, exist_ok=True)
 
     try:
-        time.sleep(2)
-
-        if "instagram.com" in url:
-            if "/stories/" in url:
-                try:
-                    parts = url.split("/stories/")
-                    if len(parts) > 1:
-                        story_parts = parts[1].split("/")
-                        username = story_parts[0]
-                        
-                        profile = instaloader.Profile.from_username(L.context, username)
-                        stories = L.get_stories([profile.userid])
-                        found_story = False
-                        for story in stories:
-                            for item in story.get_items():
-                                L.download_storyitem(item, target=download_dir)
-                                found_story = True
-                                time.sleep(1)
-                        
-                        if not found_story:
-                            print("Faol hikoyalar topilmadi yoki ularga kirish cheklangan.")
-                except Exception as story_err:
-                    print(f"Story yuklashda xatolik: {story_err}")
+        # yt-dlp yordamida istalgan Instagram havolasini (post, reel, story) va YouTube'ni yuklash
+        ydl_opts = {
+            'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
+            'format': 'best',
+            'quiet': True,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            if 'entries' in info:
+                # Agar pleylist yoki bir nechta fayl bo'lsa
+                for entry in info['entries']:
+                    if entry:
+                        filename = ydl.prepare_filename(entry)
+                        downloaded_files.append(filename)
             else:
-                shortcode = None
-                if "/p/" in url:
-                    shortcode = url.split("/p/")[1].split("/")[0]
-                elif "/reel/" in url:
-                    shortcode = url.split("/reel/")[1].split("/")[0]
-                elif "/reels/" in url:
-                    shortcode = url.split("/reels/")[1].split("/")[0]
-
-                if shortcode:
-                    post = instaloader.Post.from_shortcode(L.context, shortcode)
-                    L.download_post(post, target=download_dir)
-                else:
-                    await message.answer("❌ Instagram havolasidan postni aniqlab bo'lmadi.")
-                    await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
-                    return
-
-            extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
-            for ext in extensions:
-                downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
-        else:
-            ydl_opts = {
-                'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
-                'format': 'best',
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
                 filename = ydl.prepare_filename(info)
                 downloaded_files.append(filename)
 
         if downloaded_files:
-            downloaded_files.sort()
-            
             for file_path in downloaded_files:
-                try:
-                    if file_path.endswith(('.jpg', '*.jpeg', '*.png', '*.webp')):
-                        media_file = types.FSInputFile(file_path)
-                        await message.answer_photo(photo=media_file)
-                    elif file_path.endswith(('.mp4', '*.mov', '*.mkv', '*.webm')):
-                        media_file = types.FSInputFile(file_path)
-                        await message.answer_video(video=media_file)
-                    time.sleep(1)
-                except Exception as file_err:
-                    print(f"Faylni yuborishda xatolik: {file_err}")
+                if os.path.exists(file_path):
+                    try:
+                        if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                            media_file = types.FSInputFile(file_path)
+                            await message.answer_photo(photo=media_file)
+                        elif file_path.endswith(('.mp4', '*.mov', '*.mkv', '*.webm')):
+                            media_file = types.FSInputFile(file_path)
+                            await message.answer_video(video=media_file)
+                        time.sleep(1)
+                    except Exception as file_err:
+                        print(f"Faylni yuborishda xatolik: {file_err}")
             
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         else:
             await bot.edit_message_text(
-                "❌ Hech qanday media topilmadi yoki Instagram vaqtinchalik cheklov qo'ydi (429 Too Many Requests). Biroz kuting.", 
+                "❌ Media topilmadi yoki bu hikoya/sahifa yopiq (private).", 
                 chat_id=message.chat.id, 
                 message_id=processing_msg.message_id
             )
@@ -133,14 +74,7 @@ async def process_link_handler(message: types.Message):
     except Exception as e:
         error_str = str(e)
         print(f"Xatolik: {error_str}")
-        if "429" in error_str:
-            await bot.edit_message_text(
-                "⚠️ Instagram vaqtinchalik cheklov qo'ydi (Too Many Requests). Iltimos, 10-15 daqiqa kuting va qayta urinib ko'ring.", 
-                chat_id=message.chat.id, 
-                message_id=processing_msg.message_id
-            )
-        else:
-            await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id, message_id=processing_msg.message_id)
+        await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id, message_id=processing_msg.message_id)
 
     finally:
         for file_path in glob.glob(os.path.join(download_dir, '*.*')):
