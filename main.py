@@ -48,7 +48,7 @@ async def link_handler(message: types.Message):
     url = message.text.strip()
     
     if not url.startswith(("http://", "https://")):
-        await message.answer("❌ Iltimos linki tekshirib qayta yuboring.")
+        await message.answer("❌ Iltimos linkni tekshirib qayta yuboring.")
         return
 
     # Qum soat quyamiz
