@@ -4,12 +4,22 @@ import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 import yt_dlp
+import instaloader
 import shutil
 
 TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
+
+L = instaloader.Instaloader(
+    download_videos=True,
+    download_video_thumbnails=False,
+    download_geotags=False,
+    download_comments=False,
+    save_metadata=False,
+    compress_json=False
+)
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
@@ -31,21 +41,52 @@ async def process_link_handler(message: types.Message):
     error_log = ""
 
     try:
-        ydl_opts = {
-            'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
-            'format': 'best/bestvideo+bestaudio/best',
-            'ignoreerrors': True,
-            'quiet': True,
-        }
-
-        if os.path.exists("cookies.txt"):
-            ydl_opts["cookiefile"] = "cookies.txt"
-        
+        # 1. Instaloader orqali post, karusel va story larni tortib ko'ramiz
+        success_insta = False
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.extract_info(url, download=True)
+            if "/p/" in url or "/reel/" in url or "/tv/" in url:
+                if "/p/" in url:
+                    shortcode = url.split("/p/")[1].split("/")[0]
+                elif "/reel/" in url:
+                    shortcode = url.split("/reel/")[1].split("/")[0]
+                else:
+                    shortcode = url.split("/tv/")[1].split("/")[0]
+                    
+                post = instaloader.Post.from_shortcode(L.context, shortcode)
+                L.download_post(post, target=download_dir)
+                success_insta = True
+
+            elif "instagram.com/" in url and not any(x in url for x in ["/p/", "/reel/", "/tv/"]):
+                parts = [p for p in url.split("/") if p]
+                if len(parts) >= 3:
+                    username = parts[-1]
+                    if username in ["instagram.com", "www.instagram.com"]:
+                        username = parts[-2]
+                    profile = instaloader.Profile.from_username(L.context, username)
+                    for story in L.get_stories([profile.userid]):
+                        for item in story.get_items():
+                            L.download_storyitem(item, target=download_dir)
+                    success_insta = True
         except Exception as e:
-            error_log += f"\n- {str(e)}"
+            error_log += f"\n- Instaloader xatosi: {str(e)}"
+
+        # 2. Agar instaloader ololmasa yoki YouTube/boshqa havola bo'lsa, yt-dlp ishlatamiz
+        if not success_insta or not glob.glob(os.path.join(download_dir, '**', '*.*'), recursive=True):
+            ydl_opts = {
+                'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
+                'format': 'best/bestvideo+bestaudio/best',
+                'ignoreerrors': True,
+                'quiet': True,
+            }
+
+            if os.path.exists("cookies.txt"):
+                ydl_opts["cookiefile"] = "cookies.txt"
+            
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.extract_info(url, download=True)
+            except Exception as e:
+                error_log += f"\n- Yt-dlp xatosi: {str(e)}"
 
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         found_files = []
@@ -57,34 +98,37 @@ async def process_link_handler(message: types.Message):
         if downloaded_files:
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
             
-            # Rasmlarni bitta albom (MediaGroup) qilib yuborish uchun yig'amiz
             photo_media = []
-            
+            video_media = []
+
             for file_path in downloaded_files:
-                try:
-                    if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')) and os.path.getsize(file_path) > 1024:
-                        photo_media.append(types.InputMediaPhoto(media=types.FSInputFile(file_path)))
-                    elif file_path.endswith(('.mp4', '.mov', '*.mkv', '*.webm')):
-                        # Agar oldin yig'ilgan rasmlar bo'lsa, avval ularni albom ko'rinishida yuboramiz
-                        if photo_media:
-                            await bot.send_media_group(chat_id=message.chat.id, media=photo_media)
-                            photo_media = []
-                        # Videoni alohida yuboramiz (Telegram albomiga faqat rasm yoki faqat video tushadi)
-                        await message.answer_video(video=types.FSInputFile(file_path))
-                    
-                    await asyncio.sleep(0.3)
-                except Exception as file_err:
-                    print(f"Yuborish xatosi: {file_err}")
-            
-            # Agar oxirida yana yig'ilib qolgan rasmlar bo'lsa, ularni ham yuboramiz
+                if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')) and os.path.getsize(file_path) > 1024:
+                    photo_media.append(file_path)elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
+                    video_media.append(file_path)
+
+            # Rasmlarni albom qilib yuborish
             if photo_media:
-                await bot.send_media_group(chat_id=message.chat.id, media=photo_media)
+                chunked_photos = [photo_media[i:i + 10] for i in range(0, len(photo_media), 10)]
+                for chunk in chunked_photos:
+                    media_group = [types.InputMediaPhoto(media=types.FSInputFile(p)) for p in chunk]
+                    try:
+                        await bot.send_media_group(chat_id=message.chat.id, media=media_group)
+                    except Exception as e:
+                        print(f"Rasm yuborish xatosi: {e}")
+
+            # Videolarni yuborish
+            for v_path in video_media:
+                try:
+                    await message.answer_video(video=types.FSInputFile(v_path))
+                    await asyncio.sleep(0.5)
+                except Exception as e:
+                    print(f"Video yuborish xatosi: {e}")
 
         else:
             err_details = error_log if error_log.strip() else "Media fayllari topilmadi yoki havola yaroqsiz."
             await bot.edit_message_text(
                 f"❌ **Yuklab bo'lmadi!**\n\n"
-                f"🔍 **Aniq xato:**\n`{err_details}`", 
+                f"🔍 **Sabab:**\n`{err_details}`", 
                 chat_id=message.chat.id,
                 message_id=processing_msg.message_id,
                 parse_mode="Markdown"
