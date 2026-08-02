@@ -13,7 +13,7 @@ dp = Dispatcher()
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Menga Instagram (post, 2+ rasmlar, reel, story) yoki YouTube havolasini yuboring, men uni yuklab beraman.")
+    await message.answer("Salom! Menga Instagram (post, rasmlar, reel, story) yoki YouTube havolasini yuboring, men uni yuklab beraman.")
 
 @dp.message()
 async def process_link_handler(message: types.Message):
@@ -32,43 +32,43 @@ async def process_link_handler(message: types.Message):
     try:
         ydl_opts = {
             'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
-            'format': 'best',
+            'format': 'best/bestvideo+bestaudio/best', # Rasmlar va videolar uchun universal format
             'cookiefile': 'cookies.txt',
+            'ignoreerrors': True,
             'quiet': True,
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            if 'entries' in info:
+            if info and 'entries' in info:
                 for entry in info['entries']:
                     if entry:
                         filename = ydl.prepare_filename(entry)
                         downloaded_files.append(filename)
-            else:
+            elif info:
                 filename = ydl.prepare_filename(info)
                 downloaded_files.append(filename)
 
-        # Papkadagi barcha yuklangan fayllarni topish (2 talik rasmlar ham shu yerda to'liq yig'iladi)
+        # Papkadagi barcha media fayllarni to'liq qidirib topish
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         for ext in extensions:
             downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
 
-        # Takrorlangan fayllarni olib tashlash va saralash
-        downloaded_files = sorted(list(set(downloaded_files)))
+        # Takroriylarni olib tashlab tartiblash
+        downloaded_files = sorted(list(set([f for f in downloaded_files if os.path.exists(f)])))
 
         if downloaded_files:
             for file_path in downloaded_files:
-                if os.path.exists(file_path):
-                    try:
-                        if file_path.endswith(('.jpg', '*.jpeg', '*.png', '*.webp')):
-                            media_file = types.FSInputFile(file_path)
-                            await message.answer_photo(photo=media_file)
-                        elif file_path.endswith(('.mp4', '*.mov', '*.mkv', '*.webm')):
-                            media_file = types.FSInputFile(file_path)
-                            await message.answer_video(video=media_file)
-                        time.sleep(1)
-                    except Exception as file_err:
-                        print(f"Faylni yuborishda xatolik: {file_err}")
+                try:
+                    if file_path.endswith(('.jpg', '*.jpeg', '*.png', '*.webp')):
+                        media_file = types.FSInputFile(file_path)
+                        await message.answer_photo(photo=media_file)
+                    elif file_path.endswith(('.mp4', '*.mov', '*.mkv', '*.webm')):
+                        media_file = types.FSInputFile(file_path)
+                        await message.answer_video(video=media_file)
+                    time.sleep(1)
+                except Exception as file_err:
+                    print(f"Faylni yuborishda xatolik: {file_err}")
             
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         else:
