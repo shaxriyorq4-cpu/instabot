@@ -27,17 +27,23 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Xatolik bermaydigan format tanlash funksiyasi"""
+    """YouTube va Shorts videolarini xatoliklarsiz yuklab olish"""
     try:
         ydl_opts = {
-            # ENG MUHIM O'ZGARISH: Format xatosini yo'qotish uchun eng universal usul
-            'format': 'best',
+            # YouTube format talablarini chetlab o'tish uchun eng ishonchli sozlama
+            'format': 'best/bestvideo+bestaudio',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
             'geo_bypass': True,
             'nocheckcertificate': True,
+            # YouTube bot blokini olish uchun cookies.txt shart
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android', 'web']
+                }
+            }
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -90,7 +96,7 @@ async def link_handler(message: types.Message):
                 pass
             print("✅ Video muvaffaqiyatli yuborildi!")
         else:
-            await status.edit_text("❌ Videoni yuklab bo'lmadi. YouTube cheklovi yoki xatolik yuz berdi.")
+            await status.edit_text("❌ Videoni yuklab bo'lmadi. Proyektda 'cookies.txt' fayli borligini tekshiring!")
 
     except Exception as e:
         print(f"Xatolik: {e}")
