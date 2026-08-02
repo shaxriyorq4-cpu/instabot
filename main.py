@@ -20,35 +20,36 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
     text = (
-        "Salom! Bot ishga tushdi. 🤝\n"
-        "Faqat YouTube Shorts linklarini yuboring!"
+        "Salom! YouTube va Shorts yuklash boti ishga tushdi. 🤝\n"
+        "Videolar havolasini yuboring!"
     )
     await message.answer(text)
 
 
 async def download_video(url: str, folder: str):
-    """YouTube Shorts videolarini cookies yordamida yuklab olish funksiyasi"""
+    """Railway uchun moslashtirilgan YouTube va Shorts yuklab olish funksiyasi"""
     try:
         ydl_opts = {
-            'format': 'best/worst',
+            'format': 'bestvideo+bestaudio/best',
+            'merge_output_format': 'mp4',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
             'geo_bypass': True,
             'nocheckcertificate': True,
-            # Server IP blokerini chetlab o'tish uchun cookies.txt faylini tekshiramiz:
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['android', 'web']
-                }
-            }
         }
+        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-            if os.path.exists(filename):
+            base, _ = os.path.splitext(filename)
+            mp4_filename = base + '.mp4'
+            
+            if os.path.exists(mp4_filename):
+                return mp4_filename
+            elif os.path.exists(filename):
                 return filename
                 
             for f in os.listdir(folder):
@@ -66,7 +67,7 @@ async def link_handler(message: types.Message):
     url = message.text.strip()
     
     if not url.startswith(("http://", "https://")) or ("youtube.com" not in url and "youtu.be" not in url):
-        await message.answer("❌ Iltimos faqat YouTube Shorts linkini yuboring!")
+        await message.answer("❌ Iltimos faqat YouTube yoki Shorts linkini yuboring!")
         return
 
     status = await message.answer("⏳")
@@ -80,7 +81,7 @@ async def link_handler(message: types.Message):
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
             
-            final_caption = "📥 YouTube Shorts yuklab olindi ✅"
+            final_caption = "📥 YouTube videosi yuklab olindi ✅"
 
             await message.answer_video(
                 video=video_file, 
@@ -92,9 +93,9 @@ async def link_handler(message: types.Message):
                 await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
             except:
                 pass
-            print("✅ Shorts video muvaffaqiyatli yuborildi!")
+            print("✅ Video muvaffaqiyatli yuborildi!")
         else:
-            await status.edit_text("❌ Videoni yuklab bo'lmadi. Serverda cookies.txt fayli borligiga ishonch hosil qiling!")
+            await status.edit_text("❌ Videoni yuklab bo'lmadi. YouTube cheklovi yoki xatolik yuz berdi.")
 
     except Exception as e:
         print(f"Xatolik: {e}")
