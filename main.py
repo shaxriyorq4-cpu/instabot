@@ -32,29 +32,33 @@ async def process_link_handler(message: types.Message):
     try:
         ydl_opts = {
             'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
-            'format': 'best/bestvideo+bestaudio/best', # Rasmlar va videolar uchun universal format
+            'format': 'bestvideo+bestaudio/best/b',
             'cookiefile': 'cookies.txt',
             'ignoreerrors': True,
+            'writethumbnail': False,
             'quiet': True,
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            if info and 'entries' in info:
-                for entry in info['entries']:
-                    if entry:
-                        filename = ydl.prepare_filename(entry)
-                        downloaded_files.append(filename)
-            elif info:
-                filename = ydl.prepare_filename(info)
-                downloaded_files.append(filename)
+            try:
+                info = ydl.extract_info(url, download=True)
+                if info and 'entries' in info:
+                    for entry in info['entries']:
+                        if entry:
+                            filename = ydl.prepare_filename(entry)
+                            downloaded_files.append(filename)
+                elif info:
+                    filename = ydl.prepare_filename(info)
+                    downloaded_files.append(filename)
+            except Exception as ydl_err:
+                print(f"YDL yuklashda ogohlantirish: {ydl_err}")
 
-        # Papkadagi barcha media fayllarni to'liq qidirib topish
+        # Papkadagi barcha rasm va video formatlarini qo'lda to'liq yig'ib olish
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         for ext in extensions:
             downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
 
-        # Takroriylarni olib tashlab tartiblash
+        # Takroriylarni tozalash va mavjudligini tekshirish
         downloaded_files = sorted(list(set([f for f in downloaded_files if os.path.exists(f)])))
 
         if downloaded_files:
