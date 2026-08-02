@@ -28,21 +28,19 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Faqat YouTube va Shorts videolarini ishonchli yuklab olish funksiyasi"""
+    """YouTube va Shorts videolarini xatoliklarsiz yuklab olish funksiyasi"""
     try:
         ydl_opts = {
-            'format': 'bestvideo+bestaudio/best',
-            'merge_output_format': 'mp4',
+            'format': 'b / bv*+ba/b',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
             'geo_bypass': True,
             'nocheckcertificate': True,
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
-            # YouTube bot ekanligini sezmasligi uchun eng yangi mijoz sozlamalari
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['ios', 'android', 'web'],
+                    'player_client': ['android', 'web'],
                 }
             }
         }
@@ -50,13 +48,7 @@ async def download_video(url: str, folder: str):
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-            # Agar formatlar birlashtirilgan bo'lsa kengaytmasi mp4 bo'ladi
-            base, _ = os.path.splitext(filename)
-            mp4_filename = base + '.mp4'
-            
-            if os.path.exists(mp4_filename):
-                return mp4_filename
-            elif os.path.exists(filename):
+            if os.path.exists(filename):
                 return filename
                 
             for f in os.listdir(folder):
