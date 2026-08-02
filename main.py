@@ -28,7 +28,7 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Videoni yuklab olish funksiyasi (YouTube va Shorts xatoliklarini chetlab o'tish uchun)"""
+    """Videoni yuklab olish funksiyasi (cookies yordamida bot tekshiruvini chetlab o'tish)"""
     try:
         ydl_opts = {
             'format': 'best[ext=mp4]/best',
@@ -36,7 +36,8 @@ async def download_video(url: str, folder: str):
             'no_warnings': True,
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'concurrent_fragment_downloads': 5,
-            # YouTube bot tekshiruvidan o'tish uchun client sozlamasi:
+            # Agar cookies.txt fayli mavjud bo'lsa, undan foydalanamiz:
+            'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
                 'youtube': {
                     'player_client': ['mweb', 'android']
