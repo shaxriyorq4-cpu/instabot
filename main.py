@@ -21,11 +21,11 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Link yuboring, chaqmoq tezligida tashlab beraman. ⚡️")
+    await message.answer("Salom! Link yuboring, 3 deganda darhol tashlab beraman. ⚡️")
 
 
 async def get_video_url(url: str):
-    """Orqa fonda yt-dlp orqali videoni qidirish funksiyasi"""
+    """Orqa fonda yt-dlp orqali videoni qidirish"""
     try:
         ydl_opts = {
             'format': 'best[ext=mp4]/best',
@@ -47,39 +47,39 @@ async def link_handler(message: types.Message):
         await message.answer("❌ To'g'ri link yuboring.")
         return
 
-    # Xabarni chiqaramiz
-    status = await message.answer("⚡ 1...")
-    
-    # Videoni orqa fonda qidirishni boshlab yuboramiz (parallel jarayon)
+    # 1. Havola kelishi bilan birinchi navbatda orqa fonda videoni qidirishni boshlaymiz
     task = asyncio.create_task(get_video_url(url))
 
-    # 1 sekund kutamiz
-    await asyncio.sleep(1.0)
+    # 2. Shu zahotiyoq "1" ni chiqaramiz
+    status = await message.answer("⚡ 1...")
+    
+    # 0.4 sekund kutib "2" ni chiqaramiz (vaqtni o'zingizga moslab biroz qisqartirdik)
+    await asyncio.sleep(0.4)
     try:
         await status.edit_text("⚡ 2...")
     except:
         pass
 
-    # Yana 1 sekund kutamiz
-    await asyncio.sleep(1.0)
+    # Yana 0.4 sekund kutib "3" ni chiqaramiz
+    await asyncio.sleep(0.4)
     try:
         await status.edit_text("⚡ 3...")
     except:
         pass
 
-    # Orqa fondagi qidiruv tugashini kutamiz (agar biroz qolgan bo'lsa)
+    # 3 chiqishi bilan orqa fondagi qidiruv natijasini olamiz (u allaqachon tayyor bo'lgan bo'ladi)
     direct_url = await task
 
     try:
         if direct_url:
-            # 3 soniya tugashi bilan darhol videoni tashlaymiz
+            # 3 chiqishi bilan darhol videoni tashlaymiz
             await message.answer_video(video=direct_url)
             await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
-            print("✅ 3-soniyada muvaffaqiyatli tashlandi!")
+            print("✅ 3 deganda tashlandi!")
             return
         
-        # Agar 1-usul ishlamasa, zaxira yuklash usuli
-        status_backup = await message.answer("⏳ Tayyorlanmoqda...")
+        # Agar to'g'ridan-to'g'ri link o'xshamasa (zaxira yuklash)
+        status_backup = await message.answer("⏳ Yuklanmoqda...")
         user_folder = os.path.join(DOWNLOAD_DIR, str(message.from_user.id))
         os.makedirs(user_folder, exist_ok=True)
         
@@ -99,7 +99,10 @@ async def link_handler(message: types.Message):
             video_file = FSInputFile(filename)
             await message.answer_video(video=video_file, request_timeout=120)
             await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
-            await bot.delete_message(chat_id=message.chat.id, message_id=status_backup.message_id)
+            try:
+                await bot.delete_message(chat_id=message.chat.id, message_id=status_backup.message_id)
+            except:
+                pass
             shutil.rmtree(user_folder, ignore_errors=True)
         else:
             await status_backup.edit_text("❌ Video topilmadi.")
@@ -114,7 +117,7 @@ async def link_handler(message: types.Message):
 
 
 async def main():
-    print("🚀 Ultratezkor bot ishga tushdi...")
+    print("🚀 Bot ishga tushdi...")
     await dp.start_polling(bot)
 
 
