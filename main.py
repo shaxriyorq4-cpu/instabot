@@ -298,6 +298,7 @@ async def send_media_group(
                 ".webm"
             )
         ):
+            print("VIDEO TOPILDI:", file)
 
             size = os.path.getsize(
                 file
@@ -307,11 +308,10 @@ async def send_media_group(
 
                 media.append(
                     InputMediaVideo(
-                        media=FSInputFile(
-                            file
-                        )
+                        media=FSInputFile(file)
                     )
                 )
+                print("TELEGRAMGA YUBORILDI:", file)
 
             else:
 
