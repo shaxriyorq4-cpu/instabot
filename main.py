@@ -89,7 +89,6 @@ async def process_link_handler(message: types.Message):
             except Exception as e:
                 error_log += f"\n- Yt-dlp xatosi: {str(e)}"
 
-        # Barcha turdagi rasm va video formatlarini qamrab olish uchun kengaytirildi
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.heic', '*.mp4', '*.mov', '*.mkv', '*.webm')
         found_files = []
         for ext in extensions:
@@ -104,9 +103,9 @@ async def process_link_handler(message: types.Message):
             video_media = []
 
             for file_path in downloaded_files:
-                # Hajmi 1KB dan katta bo'lgan barcha rasmlarni qo'shamizif file_path.endswith(('.jpg', '.jpeg', '.png', '.webp', '.heic')) and os.path.getsize(file_path) > 1024:
+                if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp', '.heic')) and os.path.getsize(file_path) > 1024:
                     photo_media.append(file_path)
-            elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
+                elif file_path.endswith(('.mp4', '.mov', '.mkv', '.webm')):
                     video_media.append(file_path)
 
             if photo_media:
