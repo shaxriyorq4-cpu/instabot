@@ -36,6 +36,7 @@ async def process_link_handler(message: types.Message):
             'cookiefile': 'cookies.txt',
             'ignoreerrors': True,
             'quiet': True,
+            'extract_flat': False, # Rasmlar va karusel postlarini to'liq ochish uchun
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -98,7 +99,7 @@ async def process_link_handler(message: types.Message):
             f"❌ **Xatolik yuz berdi!**\n\n"
             f"📍 Manzil: {error_location}\n"
             f"🛠 Sabab: `{error_text}`", 
-            chat_id=message.chat.id,
+            chat_id=message.chat.id, 
             message_id=processing_msg.message_id,
             parse_mode="Markdown"
         )
