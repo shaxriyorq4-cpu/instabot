@@ -30,17 +30,17 @@ async def process_link_handler(message: types.Message):
     os.makedirs(download_dir, exist_ok=True)
 
     try:
-        # yt-dlp yordamida istalgan Instagram havolasini (post, reel, story) va YouTube'ni yuklash
+        # yt-dlp sozlamalari (cookies.txt orqali cheklangan kontentlarni ham ochadi)
         ydl_opts = {
             'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
             'format': 'best',
+            'cookiefile': 'cookies.txt',  # Bot turgan papkada cookies.txt bo'lishi shart
             'quiet': True,
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             if 'entries' in info:
-                # Agar pleylist yoki bir nechta fayl bo'lsa
                 for entry in info['entries']:
                     if entry:
                         filename = ydl.prepare_filename(entry)
@@ -53,7 +53,7 @@ async def process_link_handler(message: types.Message):
             for file_path in downloaded_files:
                 if os.path.exists(file_path):
                     try:
-                        if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                        if file_path.endswith(('.jpg', '*.jpeg', '*.png', '*.webp')):
                             media_file = types.FSInputFile(file_path)
                             await message.answer_photo(photo=media_file)
                         elif file_path.endswith(('.mp4', '*.mov', '*.mkv', '*.webm')):
@@ -66,7 +66,7 @@ async def process_link_handler(message: types.Message):
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         else:
             await bot.edit_message_text(
-                "❌ Media topilmadi yoki bu hikoya/sahifa yopiq (private).", 
+                "❌ Media topilmadi yoki bu kontent maxfiy / yopiq.", 
                 chat_id=message.chat.id, 
                 message_id=processing_msg.message_id
             )
