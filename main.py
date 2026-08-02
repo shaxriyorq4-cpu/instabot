@@ -12,7 +12,6 @@ TOKEN = "8915219066:AAEapW0Id_nw6Ex1hZsm8tcTxmR4x8k-Zag"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Instaloader ni sozlash (istoriyalar va rasmlar uchun)
 L = instaloader.Instaloader(
     download_videos=True,
     download_video_thumbnails=False,
@@ -24,7 +23,7 @@ L = instaloader.Instaloader(
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Menga Instagram (profil, post, rasmlar, reel, story) yoki YouTube havolasini yuboring, men uni yuklab beraman.")
+    await message.answer("Salom! Menga Instagram yoki YouTube havolasini yuboring.")
 
 @dp.message()
 async def process_link_handler(message: types.Message):
@@ -36,39 +35,37 @@ async def process_link_handler(message: types.Message):
 
     processing_msg = await message.answer("⏳ Yuklab olinmoqda, biroz kuting...")
     
-    downloaded_files = []
     download_dir = f"downloads_{message.from_user.id}"
     os.makedirs(download_dir, exist_ok=True)
 
     try:
-        # 1. Instagram profil havolasi bo'lsa (istoriyalarini olish uchun)
-        if "instagram.com/" in url and ("/p/" not in url) and ("/reel/" not in url):
+        # Faqat bitta urinishni tanlaymiz (dublyor chiqmasligi uchun)
+        if "instagram.com/p/" in url:
+            # Post / Karusel uchun
+            try:
+                shortcode = url.split("/p/")[1].split("/")[0]
+                post = instaloader.Post.from_shortcode(L.context, shortcode)
+                L.download_post(post, target=download_dir)
+            except Exception as e:
+                print(f"Instaloader xatosi: {e}")
+        elif "instagram.com/" in url and not ("/reel/" in url):
+            # Profil / Story uchun
             parts = [p for p in url.split("/") if p]
             if len(parts) >= 3:
                 username = parts[-1]
-                if username == "instagram.com" or username == "www.instagram.com":
+                if username in ["instagram.com", "www.instagram.com"]:
                     username = parts[-2]
-                
                 try:
                     profile = instaloader.Profile.from_username(L.context, username)
                     for story in L.get_stories([profile.userid]):
                         for item in story.get_items():
                             L.download_storyitem(item, target=download_dir)
-                except Exception as story_err:
-                    print(f"Istorya yuklashda xatolik: {story_err}")
-
-        # 2. Instagram post / karusel bo'lsa
-        if "instagram.com/p/" in url:
-            try:
-                shortcode = url.split("/p/")[1].split("/")[0]
-                post = instaloader.Post.from_shortcode(L.context, shortcode)
-                L.download_post(post, target=download_dir)
-            except Exception as inst_err:
-                print(f"Instaloader post xatosi: {inst_err}")
-
-        # 3. Reels, YouTube va boshqa videolar uchun yt-dlp
+                except Exception as e:
+                    print(f"Story xatosi (429 yoki yopiq profil): {e}")
+        
+        # Qolgan hamma narsa (Reels, YouTube) uchun yt-dlp
         ydl_opts = {
-            'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
+            'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
             'format': 'best/bestvideo+bestaudio/best',
             'cookiefile': 'cookies.txt',
             'ignoreerrors': True,
@@ -76,49 +73,40 @@ async def process_link_handler(message: types.Message):
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            if info and 'entries' in info:
-                for entry in info['entries']:
-                    if entry:
-                        filename = ydl.prepare_filename(entry)
-                        downloaded_files.append(filename)
-            elif info:
-                filename = ydl.prepare_filename(info)
-                downloaded_files.append(filename)
+            ydl.extract_info(url, download=True)
 
-        # Papkadagi barcha fayllarni to'liq yig'ish (ichki papkalardan ham)
+        # Fayllarni to'plash va dublyorlarni olib tashlash (set yordamida)
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
+        found_files = []
         for ext in extensions:
-            downloaded_files.extend(glob.glob(os.path.join(download_dir, '**', ext), recursive=True))
+            found_files.extend(glob.glob(os.path.join(download_dir, '**', ext), recursive=True))
 
-        # Unikal fayllarni to'plash
-        downloaded_files = sorted(list(set([os.path.abspath(f) for f in downloaded_files if os.path.exists(f)])))
+        # Mutlaq yo'llar bo'yicha unikal qilamiz
+        downloaded_files = sorted(list(set([os.path.abspath(f) for f in found_files if os.path.exists(f)])))
 
         if downloaded_files:
+            await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
             for file_path in downloaded_files:
                 try:
                     if file_path.endswith(('.jpg', '.jpeg', '.png', '*.webp')):
-                        media_file = types.FSInputFile(file_path)
-                        await message.answer_photo(photo=media_file)
-                    elif file_path.endswith(('.mp4', '*.mov', '*.mkv', '*.webm')):
-                        media_file = types.FSInputFile(file_path)
-                        await message.answer_video(video=media_file)
-                    time.sleep(1)
+                        await message.answer_photo(photo=types.FSInputFile(file_path))
+                    elif file_path.endswith(('.mp4', '.mov', '.mkv', '*.webm')):
+                        await message.answer_video(video=types.FSInputFile(file_path))
+                    time.sleep(0.5)
                 except Exception as file_err:
-                    print(f"Faylni yuborishda xatolik: {file_err}")
-            
-            await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
+                    print(f"Yuborish xatosi: {file_err}")
         else:
             await bot.edit_message_text(
-                "❌ Media topilmadi. Profil yopiq bo'lishi mumkin yoki hozirda aktiv istoriyasi yo'q.", 
+                "❌ **Media topilmadi yoki 429 xatoligi (Ko'p so'rov yuborildi).**\n"
+                "Iltimos, bir oz kutib qaytadan urinib ko'ring.", 
                 chat_id=message.chat.id, 
-                message_id=processing_msg.message_id
+                message_id=processing_msg.message_id,
+                parse_mode="Markdown"
             )
 
     except Exception as e:
         error_text = str(e)
-        print(f"ANIQ XATOLIK: {error_text}")
-        
+        print(f"ASOSIY XATOLIK: {error_text}")
         await bot.edit_message_text(
             f"❌ **Xatolik yuz berdi!**\n\n"
             f"🛠 Sabab: `{error_text}`", 
