@@ -43,7 +43,6 @@ async def process_link_handler(message: types.Message):
     try:
         if "/p/" in url or "/reel/" in url or "/tv/" in url:
             try:
-                # Agar /p/ bo'lmasa, shortcode ni boshqacha usulda olib bo'lmay qolmasligi uchun xavfsiz qilamiz
                 if "/p/" in url:
                     shortcode = url.split("/p/")[1].split("/")[0]
                 elif "/reel/" in url:
@@ -56,7 +55,7 @@ async def process_link_handler(message: types.Message):
             except Exception as e:
                 error_log += f"\n- Instaloader Post xatosi: {str(e)}"
 
-        elif "instagram.com/" in url and not ("/reel/" in url) and not ("/tv/" in url):
+        elif "instagram.com/" in url and not ("/reel/" in url) and not ("/tv/" in url) and not ("/p/" in url):
             parts = [p for p in url.split("/") if p]
             if len(parts) >= 3:
                 username = parts[-1]
@@ -80,12 +79,14 @@ async def process_link_handler(message: types.Message):
 
             if os.path.exists("cookies.txt"):
                 ydl_opts["cookiefile"] = "cookies.txt"
+            
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.extract_info(url, download=True)
             except Exception as e:
                 error_log += f"\n- Yt-dlp xatosi: {str(e)}"
 
+        # XATO TUZATILGAN JOY: Bu qism endi to'g'ri indentatsiya (joy tashlash) bilan asosiy blok ichiga olindi
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         found_files = []
         for ext in extensions:
