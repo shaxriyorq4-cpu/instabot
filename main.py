@@ -28,15 +28,16 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Videoni yuklab olish funksiyasi (cookies yordamida bot tekshiruvini chetlab o'tish)"""
+    """Videoni yuklab olish funksiyasi (format xatolarini to'g'rilash uchun moslashtirilgan)"""
     try:
         ydl_opts = {
-            'format': 'best[ext=mp4]/best',
+            # Format topilmasa boshqa formatlarni ham qabul qiladigan qilib o'zgartirildi
+            'format': 'bestvideo+bestaudio/best',
+            'merge_output_format': 'mp4',
             'quiet': True,
             'no_warnings': True,
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'concurrent_fragment_downloads': 5,
-            # Agar cookies.txt fayli mavjud bo'lsa, undan foydalanamiz:
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
                 'youtube': {
@@ -47,7 +48,14 @@ async def download_video(url: str, folder: str):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
-            if os.path.exists(filename):
+            
+            # Agar birlashtirilgan bo'lsa kengaytmasi mp4 ga o'zgaradi
+            base, _ = os.path.splitext(filename)
+            mp4_filename = base + '.mp4'
+            
+            if os.path.exists(mp4_filename):
+                return mp4_filename
+            elif os.path.exists(filename):
                 return filename
     except Exception as e:
         print(f"Yuklashda xato: {e}")
