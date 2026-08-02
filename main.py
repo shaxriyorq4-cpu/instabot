@@ -13,7 +13,7 @@ dp = Dispatcher()
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Menga Instagram (post, reel, story) yoki YouTube havolasini yuboring, men uni yuklab beraman.")
+    await message.answer("Salom! Menga Instagram (post, 2+ rasmlar, reel, story) yoki YouTube havolasini yuboring, men uni yuklab beraman.")
 
 @dp.message()
 async def process_link_handler(message: types.Message):
@@ -30,11 +30,10 @@ async def process_link_handler(message: types.Message):
     os.makedirs(download_dir, exist_ok=True)
 
     try:
-        # yt-dlp sozlamalari (cookies.txt orqali cheklangan kontentlarni ham ochadi)
         ydl_opts = {
-            'outtmpl': f'{download_dir}/%(id)s.%(ext)s',
+            'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
             'format': 'best',
-            'cookiefile': 'cookies.txt',  # Bot turgan papkada cookies.txt bo'lishi shart
+            'cookiefile': 'cookies.txt',
             'quiet': True,
         }
         
@@ -48,6 +47,14 @@ async def process_link_handler(message: types.Message):
             else:
                 filename = ydl.prepare_filename(info)
                 downloaded_files.append(filename)
+
+        # Papkadagi barcha yuklangan fayllarni topish (2 talik rasmlar ham shu yerda to'liq yig'iladi)
+        extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
+        for ext in extensions:
+            downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
+
+        # Takrorlangan fayllarni olib tashlash va saralash
+        downloaded_files = sorted(list(set(downloaded_files)))
 
         if downloaded_files:
             for file_path in downloaded_files:
