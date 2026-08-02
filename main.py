@@ -32,10 +32,9 @@ async def process_link_handler(message: types.Message):
     try:
         ydl_opts = {
             'outtmpl': f'{download_dir}/%(id)s_%(autonumber)s.%(ext)s',
-            'format': 'bestvideo+bestaudio/best/b',
+            'format': 'best/bestvideo+bestaudio',
             'cookiefile': 'cookies.txt',
             'ignoreerrors': True,
-            'writethumbnail': False,
             'quiet': True,
         }
         
@@ -51,15 +50,15 @@ async def process_link_handler(message: types.Message):
                     filename = ydl.prepare_filename(info)
                     downloaded_files.append(filename)
             except Exception as ydl_err:
-                print(f"YDL yuklashda ogohlantirish: {ydl_err}")
+                print(f"YDL yuklashda xatolik: {ydl_err}")
 
-        # Papkadagi barcha rasm va video formatlarini qo'lda to'liq yig'ib olish
+        # Barcha yuklangan fayllarni topish (rasmlar va videolar uchun kengaytirilgan qidiruv)
         extensions = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.mp4', '*.mov', '*.mkv', '*.webm')
         for ext in extensions:
             downloaded_files.extend(glob.glob(os.path.join(download_dir, ext)))
 
-        # Takroriylarni tozalash va mavjudligini tekshirish
-        downloaded_files = sorted(list(set([f for f in downloaded_files if os.path.exists(f)])))
+        # Unikal fayllarni to'plash (ortiqcha takrorlanishlarni oldini olish uchun)
+        downloaded_files = sorted(list(set([os.path.abspath(f) for f in downloaded_files if os.path.exists(f)])))
 
         if downloaded_files:
             for file_path in downloaded_files:
@@ -83,9 +82,26 @@ async def process_link_handler(message: types.Message):
             )
 
     except Exception as e:
-        error_str = str(e)
-        print(f"Xatolik: {error_str}")
-        await bot.edit_message_text(f"❌ Xatolik yuz berdi: {e}", chat_id=message.chat.id, message_id=processing_msg.message_id)
+        error_text = str(e)
+        print(f"Xatolik tafsiloti: {error_text}")
+        
+        # Xatolik qaysi qatorda yoki qayerdan kelib chiqqanini aniq ko'rsatish
+        import traceback
+        tb = traceback.extract_tb(e.__traceback__)
+        if tb:
+            last_call = tb[-1]
+            error_location = f"Fayl: {os.path.basename(last_call.filename)}, Qator: {last_call.lineno}, Funksiya: {last_call.name}"
+        else:
+            error_location = "Noma'lum joy"
+
+        await bot.edit_message_text(
+            f"❌ **Xatolik yuz berdi!**\n\n"
+            f"📍 Manzil: {error_location}\n"
+            f"🛠 Sabab: `{error_text}`", 
+            chat_id=message.chat.id,
+            message_id=processing_msg.message_id,
+            parse_mode="Markdown"
+        )
 
     finally:
         for file_path in glob.glob(os.path.join(download_dir, '*.*')):
