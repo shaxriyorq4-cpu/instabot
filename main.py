@@ -28,7 +28,7 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Cookies va xatoliklarni aniq ko'rsatuvchi yuklab olish funksiyasi"""
+    """YouTube JS challenge muammosini hal qiluvchi yuklab olish funksiyasi"""
     try:
         ydl_opts = {
             'format': 'best/worst',
@@ -37,6 +37,9 @@ async def download_video(url: str, folder: str):
             'no_warnings': False,
             'geo_bypass': True,
             'nocheckcertificate': True,
+            # YouTube shifrlash va challenge'larini yechish uchun muhim sozlama:
+            'remote_components': ['ejs:github'],
+            # Cookies faylini ulash
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
                 'youtube': {
@@ -58,7 +61,7 @@ async def download_video(url: str, folder: str):
                     return full_path
                     
     except Exception as e:
-        print("\n--- YUKLASHda XATOLIK YUZ BERDI ---")
+        print("\n--- YUKLASHDA XATOLIK YUZ BERDI ---")
         print(str(e))
         traceback.print_exc()
         print("------------------------------------\n")
@@ -102,7 +105,7 @@ async def link_handler(message: types.Message):
             await status.edit_text(
                 f"❌ Videoni yuklab bo'lmadi.\n\n"
                 f"🔹 Serverda cookies.txt: {cookie_status}\n"
-                f"🔹 Sababini Railway Logs (terminal) bo'limidan ko'ring!"
+                f"🔹 YouTube JS challenge xatosi yuz berdi. Logs ni tekshiring!"
             )
 
     except Exception as e:
@@ -118,7 +121,7 @@ async def link_handler(message: types.Message):
 
 
 async def main():
-    print("🚀 YouTube Shorts bot ishga tushdi va cookies ulandi...")
+    print("🚀 YouTube Shorts bot JS solver bilan ishga tushdi...")
     await dp.start_polling(bot)
 
 
