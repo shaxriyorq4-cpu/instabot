@@ -10,7 +10,7 @@ dp = Dispatcher()
 
 @dp.message(Command("start"))
 async def start(message: types.Message):
-    await message.answer("Salom 👋")
+    await message.answer("Salom! @instadown_v2_bot ga xush kelibsiz. 🤝 ishni boshlaymizmi!")
 
 
 async def main():
