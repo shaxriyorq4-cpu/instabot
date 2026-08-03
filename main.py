@@ -22,7 +22,7 @@ def is_supported_url(text: str) -> bool:
 async def start_cmd(message: types.Message):
     await message.answer(
         "Salom! 👋\n"
-        "Menga **Instagram** (Reels, Post, Karusel rasmlar, Story), **YouTube** yoki **TikTok** havolasini yuboring.\n"
+        "Menga **Instagram** (Reels, Post, Karusel, Story), **YouTube** yoki **TikTok** havolasini yuboring.\n"
         "Men sizga kontentni va uning **musiqasini** chiqarib beraman!"
     )
 
@@ -36,7 +36,7 @@ async def download_content(message: types.Message):
 
     processing_msg = await message.answer("⏳ Yuklab olinmoqda, biroz kuting...")
 
-    # Tezkor va ishonchli yt-dlp sozlamalari
+    # yt-dlp sozlamalari (cookies.txt mavjud bo'lsa ishlatadi)
     ydl_opts = {
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
         'format': 'best/bestvideo+bestaudio',
@@ -44,6 +44,8 @@ async def download_content(message: types.Message):
         'quiet': True,
         'ignoreerrors': True,
     }
+    if os.path.exists('cookies.txt'):
+        ydl_opts['cookiefile'] = 'cookies.txt'
 
     try:
         def extract_info():
@@ -65,13 +67,16 @@ async def download_content(message: types.Message):
             if f.startswith(str(base_id)):
                 downloaded_files.append(os.path.join(DOWNLOAD_DIR, f))
 
-        await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
+        except:
+            pass
 
         if not downloaded_files:
             await message.answer("❌ Afsuski, bu havoladan kontent topib bo'lmadi.")
             return
 
-        # Musiqani alohida ajratib olish (agar video bo'lsa)
+        # Musiqani alohida ajratib olish
         audio_path = os.path.join(DOWNLOAD_DIR, f"{base_id}.mp3")
         audio_opts = {
             'outtmpl': audio_path.replace('.mp3', '.%(ext)s'),
@@ -84,6 +89,8 @@ async def download_content(message: types.Message):
             'quiet': True,
             'ignoreerrors': True,
         }
+        if os.path.exists('cookies.txt'):
+            audio_opts['cookiefile'] = 'cookies.txt'
         
         def extract_audio():
             try:
@@ -111,20 +118,18 @@ async def download_content(message: types.Message):
                 media_photos.append(InputMediaPhoto(media=FSInputFile(file_path)))
 
         if len(media_photos) > 1:
-            # 2 tadan ortiq rasmlar (karusel) bo'lsa albom qilib yuborish
             await message.answer_media_group(media=media_photos)
             if has_audio:
                 await message.answer("👆 Karusel rasmlari yuqorida.", reply_markup=keyboard)
         elif len(media_photos) == 1:
             await message.answer_photo(photo=FSInputFile(downloaded_files[0]), reply_markup=keyboard)
         else:
-            # Video yoki boshqa fayllar
             for file_path in downloaded_files:
                 if file_path.endswith(('.mp4', '.mkv', '.webm', '.mov', '.m4v', '.avi')):
                     await message.answer_video(video=FSInputFile(file_path), reply_markup=keyboard)
                     break
 
-        # Ishlatib bo'lingandan keyin videolarni tozalash (musiqa qoladi)
+        # Vaqtinchalik fayllarni tozalash
         for file_path in downloaded_files:
             try:
                 os.remove(file_path)
