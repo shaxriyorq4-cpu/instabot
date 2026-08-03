@@ -8,6 +8,7 @@ from aiogram.filters import Command
 from aiogram.types import FSInputFile
 import yt_dlp
 
+
 TOKEN = "8915219066:AAGSCkzvFImev5HLBdOMqv-q8CWjraGnsHg"
 
 bot = Bot(token=TOKEN)
@@ -34,9 +35,6 @@ async def download_video(url: str, folder: str):
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
-            'geo_bypass': True,
-            'nocheckcertificate': True,
-            'remote_components': ['ejs:github'],
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
                 'youtube': {
@@ -45,7 +43,6 @@ async def download_video(url: str, folder: str):
                 }
             }
         }
-        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
@@ -60,15 +57,11 @@ async def download_video(url: str, folder: str):
                     
     except Exception as e:
         print(f"Yuklashda xato: {e}")
-        traceback.print_exc()
     return None
 
 
 @dp.message()
 async def link_handler(message: types.Message):
-    if not message.text:
-        return
-        
     url = message.text.strip()
     
     if not url.startswith(("http://", "https://")):
@@ -85,7 +78,8 @@ async def link_handler(message: types.Message):
 
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
-            final_caption = "📥 @instadown_v2_bot orqali yuklandi      ✅"
+            
+            final_caption = "📥@instadown_v2_bot orqali yuklandi      ✅"
 
             await message.answer_video(
                 video=video_file, 
