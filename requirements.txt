@@ -1,2 +1,2 @@
-aiogram
-yt-dlp[default]
+aiogram==3.17.0
+yt-dlp
