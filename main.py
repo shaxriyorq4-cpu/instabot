@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 import yt_dlp
 
-TOKEN = "8915219066:AAG1AVjvXJXhPPvTwhMRDkdZq4gpuM3MTSE"
+TOKEN = "8763107587:AAEK33xTw8yoexp7zCG0aNphcHiDUKECMks"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
