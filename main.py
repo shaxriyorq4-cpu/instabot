@@ -28,22 +28,23 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Eng yuqori sifat va tezlikni ta'minlovchi funksiya"""
+    """Cookie xatolarini chetlab o'tib, yuqori sifatli videoni tez yuklash"""
     try:
         ydl_opts = {
-            # ENG YUQORI SIFAT: Eng tiniq video + eng tiniq audioni tezkor birlashtirish
-            'format': 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / best',
-            'merge_output_format': 'mp4',
+            # Yuqori sifatli tayyor bitta faylni olish (GVS PO token xatosiga uchramaslik uchun)
+            'format': 'best[height<=1080]/best',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': False,
             'no_warnings': False,
             'geo_bypass': True,
             'nocheckcertificate': True,
             'remote_components': ['ejs:github'],
+            # Agar cookies eskirgan bo'lsa xato bermasligi uchun uni shartli qo'shamiz
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['web', 'mweb']
+                    # PO token talab qiladigan muammoli mijozlarni olib tashlaymiz
+                    'player_client': ['android', 'web']
                 }
             }
         }
@@ -52,12 +53,7 @@ async def download_video(url: str, folder: str):
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-            base, _ = os.path.splitext(filename)
-            mp4_filename = base + '.mp4'
-            
-            if os.path.exists(mp4_filename):
-                return mp4_filename
-            elif os.path.exists(filename):
+            if os.path.exists(filename):
                 return filename
                 
             for f in os.listdir(folder):
@@ -66,7 +62,7 @@ async def download_video(url: str, folder: str):
                     return full_path
                     
     except Exception as e:
-        print("\n--- YUKLASHda XATOLIK YUZ BERDI ---")
+        print("\n--- YUKLASHDA XATOLIK YUZ BERDI ---")
         print(str(e))
         traceback.print_exc()
         print("------------------------------------\n")
@@ -92,7 +88,7 @@ async def link_handler(message: types.Message):
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
             
-            final_caption = "📥 YouTube videosi yuqori sifatda yuklab olindi ✅"
+            final_caption = "📥 YouTube videosi yuklab olindi ✅"
 
             await message.answer_video(
                 video=video_file, 
@@ -104,14 +100,9 @@ async def link_handler(message: types.Message):
                 await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
             except:
                 pass
-            print("✅ Video o'ta tiniq va tez yuborildi!")
+            print("✅ Video muvaffaqiyatli yuborildi!")
         else:
-            cookie_status = "Bor ✅" if os.path.exists('cookies.txt') else "Yo'q ❌"
-            await status.edit_text(
-                f"❌ Videoni yuklab bo'lmadi.\n\n"
-                f"🔹 Serverda cookies.txt: {cookie_status}\n"
-                f"🔹 Railway Logs ni tekshiring!"
-            )
+            await status.edit_text("❌ Videoni yuklab bo'lmadi. Railway Logs ni tekshiring!")
 
     except Exception as e:
         print(f"Handler xatoligi: {e}")
@@ -126,7 +117,7 @@ async def link_handler(message: types.Message):
 
 
 async def main():
-    print("🚀 YouTube Ultra HD & Fast bot ishga tushdi...")
+    print("🚀 YouTube tezkor bot ishga tushdi...")
     await dp.start_polling(bot)
 
 
