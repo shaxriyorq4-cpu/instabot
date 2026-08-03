@@ -2,7 +2,7 @@ import os
 import asyncio
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile, InputMediaPhoto
 import yt_dlp
 
 TOKEN = "8763107587:AAEK33xTw8yoexp7zCG0aNphcHiDUKECMks"
@@ -22,8 +22,8 @@ def is_supported_url(text: str) -> bool:
 async def start_cmd(message: types.Message):
     await message.answer(
         "Salom! 👋\n"
-        "Menga **Instagram**, **YouTube** yoki **TikTok** havolasini yuboring.\n"
-        "Men sizga videoni va uning **musiqasini** chiqarib beraman!"
+        "Menga **Instagram** (Reels, Post, Karusel rasmlar, Story), **YouTube** yoki **TikTok** havolasini yuboring.\n"
+        "Men sizga kontentni va uning **musiqasini** chiqarib beraman!"
     )
 
 @dp.message(F.text & ~F.text.startswith("/"))
@@ -34,12 +34,13 @@ async def download_content(message: types.Message):
         await message.answer("❌ Iltimos, faqat Instagram, YouTube yoki TikTok havolasini yuboring.")
         return
 
-    processing_msg = await message.answer("⏳ Kontent yuklab olinmoqda, biroz kuting...")
+    processing_msg = await message.answer("⏳ Yuklab olinmoqda, biroz kuting...")
 
+    # Tezkor va ishonchli yt-dlp sozlamalari
     ydl_opts = {
-        'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s.%(ext)s'),
+        'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
         'format': 'best/bestvideo+bestaudio',
-        'noplaylist': True,
+        'noplaylist': False,
         'quiet': True,
         'ignoreerrors': True,
     }
@@ -56,68 +57,105 @@ async def download_content(message: types.Message):
         if not info:
             raise Exception("Ma'lumot topilmadi")
 
-        file_path = yt_dlp.YoutubeDL(ydl_opts).prepare_filename(info)
-        base_id = info.get('id', 'audio')
+        base_id = info.get('id', 'media')
 
+        # Yuklab olingan fayllarni topish
+        downloaded_files = []
+        for f in os.listdir(DOWNLOAD_DIR):
+            if f.startswith(str(base_id)):
+                downloaded_files.append(os.path.join(DOWNLOAD_DIR, f))
+
+        await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
+
+        if not downloaded_files:
+            await message.answer("❌ Afsuski, bu havoladan kontent topib bo'lmadi.")
+            return
+
+        # Musiqani alohida ajratib olish (agar video bo'lsa)
+        audio_path = os.path.join(DOWNLOAD_DIR, f"{base_id}.mp3")
         audio_opts = {
-            'outtmpl': os.path.join(DOWNLOAD_DIR, f"{base_id}.%(ext)s"),
+            'outtmpl': audio_path.replace('.mp3', '.%(ext)s'),
             'format': 'bestaudio/best',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
-                'preferredquality': '192',
+                'preferredquality': '128',
             }],
             'quiet': True,
+            'ignoreerrors': True,
         }
-
+        
         def extract_audio():
-            with yt_dlp.YoutubeDL(audio_opts) as ydl:
-                ydl.extract_info(url, download=True)
+            try:
+                with yt_dlp.YoutubeDL(audio_opts) as ydl:
+                    ydl.extract_info(url, download=True)
+            except:
+                pass
 
         await loop.run_in_executor(None, extract_audio)
 
-        await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
+        # Musiqasi tugmasini tayyorlash
+        has_audio = os.path.exists(audio_path)
+        keyboard = None
+        if has_audio:
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="🎵 Musiqasi", callback_data=f"audio_{base_id}")]
+                ]
+            )
 
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="🎵 Musiqasi", callback_data=f"audio_{base_id}")]
-            ]
-        )
+        # Fayllarni turiga qarab jo'natish (Rasmlar karuseli yoki Video)
+        media_photos = []
+        for file_path in downloaded_files:
+            if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                media_photos.append(InputMediaPhoto(media=FSInputFile(file_path)))
 
-        if os.path.exists(file_path):
-            if file_path.endswith(('.mp4', '.mkv', '.webm', '.mov', '.m4v')):
-                await message.answer_video(video=FSInputFile(file_path), reply_markup=keyboard)
-            elif file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                await message.answer_photo(photo=FSInputFile(file_path), reply_markup=keyboard)
-            else:
-                await message.answer_document(document=FSInputFile(file_path), reply_markup=keyboard)
+        if len(media_photos) > 1:
+            # 2 tadan ortiq rasmlar (karusel) bo'lsa albom qilib yuborish
+            await message.answer_media_group(media=media_photos)
+            if has_audio:
+                await message.answer("👆 Karusel rasmlari yuqorida.", reply_markup=keyboard)
+        elif len(media_photos) == 1:
+            await message.answer_photo(photo=FSInputFile(downloaded_files[0]), reply_markup=keyboard)
         else:
-            await message.answer("❌ Faylni yuborishda xatolik yuz berdi.")
+            # Video yoki boshqa fayllar
+            for file_path in downloaded_files:
+                if file_path.endswith(('.mp4', '.mkv', '.webm', '.mov', '.m4v', '.avi')):
+                    await message.answer_video(video=FSInputFile(file_path), reply_markup=keyboard)
+                    break
 
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        # Ishlatib bo'lingandan keyin videolarni tozalash (musiqa qoladi)
+        for file_path in downloaded_files:
+            try:
+                os.remove(file_path)
+            except:
+                pass
 
     except Exception as e:
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         except:
             pass
-        await message.answer("❌ Kechirasiz, bu havoladan videoni yuklab bo'lmadi. Havola yopiq yoki yaroqsiz bo'lishi mumkin.")
+        await message.answer("❌ Xatolik yuz berdi. Havola yopiq yoki yaroqsiz bo'lishi mumkin.")
 
 @dp.callback_query(F.data.startswith("audio_"))
 async def send_audio_callback(callback: types.CallbackQuery):
+    try:
+        await callback.answer("Musiqa yuborilmoqda...")
+    except:
+        pass
+
     base_id = callback.data.split("_")[1]
     audio_path = os.path.join(DOWNLOAD_DIR, f"{base_id}.mp3")
 
     if os.path.exists(audio_path):
         await callback.message.answer_audio(audio=FSInputFile(audio_path), caption="🎵 Musiqa tayyor!")
-        await callback.answer()
         try:
             os.remove(audio_path)
         except:
             pass
     else:
-        await callback.answer("❌ Kechirasiz, bu musiqani topib bo'lmadi.", show_alert=True)
+        await callback.message.answer("❌ Kechirasiz, bu musiqaning vaqti o'tib ketgan yoki topilmadi.")
 
 async def main():
     print("Bot ishga tushdi...")
