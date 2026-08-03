@@ -28,22 +28,22 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """YouTube JS challenge muammosini hal qiluvchi yuklab olish funksiyasi"""
+    """Yuqori sifatli (HD) videolarni yuklab olish funksiyasi"""
     try:
         ydl_opts = {
-            'format': 'best/worst',
+            # ENG YUQORI SIFAT: Eng yaxshi video va audioni birlashtirib yuklaydi
+            'format': 'bestvideo+bestaudio/best',
+            'merge_output_format': 'mp4',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': False,
             'no_warnings': False,
             'geo_bypass': True,
             'nocheckcertificate': True,
-            # YouTube shifrlash va challenge'larini yechish uchun muhim sozlama:
             'remote_components': ['ejs:github'],
-            # Cookies faylini ulash
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'web']
+                    'player_client': ['web', 'mweb']
                 }
             }
         }
@@ -52,7 +52,12 @@ async def download_video(url: str, folder: str):
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-            if os.path.exists(filename):
+            base, _ = os.path.splitext(filename)
+            mp4_filename = base + '.mp4'
+            
+            if os.path.exists(mp4_filename):
+                return mp4_filename
+            elif os.path.exists(filename):
                 return filename
                 
             for f in os.listdir(folder):
@@ -87,7 +92,7 @@ async def link_handler(message: types.Message):
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
             
-            final_caption = "📥 YouTube videosi yuklab olindi ✅"
+            final_caption = "📥 YouTube videosi yuqori sifatda yuklab olindi ✅"
 
             await message.answer_video(
                 video=video_file, 
@@ -105,7 +110,7 @@ async def link_handler(message: types.Message):
             await status.edit_text(
                 f"❌ Videoni yuklab bo'lmadi.\n\n"
                 f"🔹 Serverda cookies.txt: {cookie_status}\n"
-                f"🔹 YouTube JS challenge xatosi yuz berdi. Logs ni tekshiring!"
+                f"🔹 Railway Logs ni tekshiring!"
             )
 
     except Exception as e:
@@ -121,7 +126,7 @@ async def link_handler(message: types.Message):
 
 
 async def main():
-    print("🚀 YouTube Shorts bot JS solver bilan ishga tushdi...")
+    print("🚀 YouTube Shorts HD bot ishga tushdi...")
     await dp.start_polling(bot)
 
 
