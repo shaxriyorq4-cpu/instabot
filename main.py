@@ -33,11 +33,10 @@ async def download_video(url: str, folder: str):
         ydl_opts = {
             'format': 'best/worst',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
-            'quiet': False,  # Xatoliklarni to'liq ko'rsatishi uchun False qilindi
+            'quiet': False,
             'no_warnings': False,
             'geo_bypass': True,
             'nocheckcertificate': True,
-            # Cookies faylini ulash
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
                 'youtube': {
@@ -59,8 +58,7 @@ async def download_video(url: str, folder: str):
                     return full_path
                     
     except Exception as e:
-        # XATOLIK QAERDALIGINI ANIQ KO'RSATISH:
-        print("\n--- YUKLASHDA XATOLIK YUZ BERDI ---")
+        print("\n--- YUKLASHda XATOLIK YUZ BERDI ---")
         print(str(e))
         traceback.print_exc()
         print("------------------------------------\n")
@@ -100,8 +98,7 @@ async def link_handler(message: types.Message):
                 pass
             print("✅ Video muvaffaqiyatli yuborildi!")
         else:
-            # Xatolik haqida batafsil ma'lumot berish
-            cookie_status мавjud = "Bor ✅" if os.path.exists('cookies.txt') else "Yo'q ❌"
+            cookie_status = "Bor ✅" if os.path.exists('cookies.txt') else "Yo'q ❌"
             await status.edit_text(
                 f"❌ Videoni yuklab bo'lmadi.\n\n"
                 f"🔹 Serverda cookies.txt: {cookie_status}\n"
