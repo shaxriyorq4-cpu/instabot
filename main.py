@@ -1,13 +1,10 @@
 import os
 import shutil
 import asyncio
-import traceback
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
 from aiogram.types import FSInputFile
 import yt_dlp
-
 
 TOKEN = "8915219066:AAGSCkzvFImev5HLBdOMqv-q8CWjraGnsHg"
 
@@ -18,23 +15,23 @@ DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 
-@dp.message(Command("start"))
+@dp.message(commands=["start"])
 async def start_handler(message: types.Message):
-    text = (
-        "Salom! @instadown_v2_bot ga xush kelibsiz. 🤝\n"
-        "ishni boshlaymizmi!"
-    )
-    await message.answer(text)
+    # /start bosilganda hech narsa yozmaydi
+    pass
 
 
 async def download_video(url: str, folder: str):
-    """Instagram va YouTube videolarini yuklab olish funksiyasi"""
+    """Tezkor yuklab olish funksiyasi"""
     try:
         ydl_opts = {
             'format': 'best',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
+            'geo_bypass': True,
+            'nocheckcertificate': True,
+            'remote_components': ['ejs:github'],
             'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'extractor_args': {
                 'youtube': {
@@ -43,6 +40,7 @@ async def download_video(url: str, folder: str):
                 }
             }
         }
+        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
@@ -62,14 +60,16 @@ async def download_video(url: str, folder: str):
 
 @dp.message()
 async def link_handler(message: types.Message):
+    if not message.text:
+        return
+        
     url = message.text.strip()
     
     if not url.startswith(("http://", "https://")):
-        await message.answer("❌ Iltimos linkni tekshirib qayta yuboring!")
+        await message.answer("❌ Xatolik: Iltimos to'g'ri link yuboring!")
         return
 
-    status = await message.answer("⏳")
-
+    # To'g'ri havola bo'lsa hech qanday matn yozmaydi, faqatgina video yuklaydi
     user_folder = os.path.join(DOWNLOAD_DIR, str(message.from_user.id))
     os.makedirs(user_folder, exist_ok=True)
 
@@ -79,28 +79,17 @@ async def link_handler(message: types.Message):
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
             
-            final_caption = "📥@instadown_v2_bot orqali yuklandi      ✅"
-
+            # Videoni hech qanday yozuvsiz (caption'siz) toza holda tez tashlab beradi
             await message.answer_video(
                 video=video_file, 
-                caption=final_caption, 
                 request_timeout=120
             )
-            
-            try:
-                await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
-            except:
-                pass
-            print("✅ Video muvaffaqiyatli yuborildi!")
         else:
-            await status.edit_text("❌ linkda xatolik bor Iltimos linkni tekshirib qayta yuboring!")
+            await message.answer("❌ Xatolik: Videoni yuklab bo'lmadi!")
 
     except Exception as e:
         print(f"Xatolik: {e}")
-        try:
-            await status.edit_text("❌ linkda xatolik bor Iltimos linkni tekshirib qayta yuboring!")
-        except:
-            pass
+        await message.answer("❌ Xatolik yuz berdi!")
 
     finally:
         if os.path.exists(user_folder):
@@ -108,7 +97,7 @@ async def link_handler(message: types.Message):
 
 
 async def main():
-    print("🚀 Bot ishga tushdi...")
+    print("🚀 Tezkor bot ishga tushdi...")
     await dp.start_polling(bot)
 
 
