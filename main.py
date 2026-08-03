@@ -23,7 +23,7 @@ async def start_cmd(message: types.Message):
     await message.answer(
         "Salom! 👋\n"
         "Menga **Instagram**, **YouTube** yoki **TikTok** havolasini yuboring.\n"
-        "Men sizga videoni (yoki rasmlarni) va uning **musiqasini** chiqarib beraman!"
+        "Men sizga videoni va uning **musiqasini** chiqarib beraman!"
     )
 
 @dp.message(F.text & ~F.text.startswith("/"))
@@ -38,8 +38,10 @@ async def download_content(message: types.Message):
 
     ydl_opts = {
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s.%(ext)s'),
-        'format': 'best',
+        'format': 'best/bestvideo+bestaudio',
+        'noplaylist': True,
         'quiet': True,
+        'ignoreerrors': True,
     }
 
     try:
@@ -50,6 +52,9 @@ async def download_content(message: types.Message):
 
         loop = asyncio.get_running_loop()
         info = await loop.run_in_executor(None, extract_info)
+
+        if not info:
+            raise Exception("Ma'lumot topilmadi")
 
         file_path = yt_dlp.YoutubeDL(ydl_opts).prepare_filename(info)
         base_id = info.get('id', 'audio')
@@ -80,19 +85,24 @@ async def download_content(message: types.Message):
         )
 
         if os.path.exists(file_path):
-            if file_path.endswith(('.mp4', '.mkv', '.webm')):
+            if file_path.endswith(('.mp4', '.mkv', '.webm', '.mov', '.m4v')):
                 await message.answer_video(video=FSInputFile(file_path), reply_markup=keyboard)
             elif file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 await message.answer_photo(photo=FSInputFile(file_path), reply_markup=keyboard)
             else:
                 await message.answer_document(document=FSInputFile(file_path), reply_markup=keyboard)
+        else:
+            await message.answer("❌ Faylni yuborishda xatolik yuz berdi.")
 
         if os.path.exists(file_path):
             os.remove(file_path)
 
     except Exception as e:
-        await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
-        await message.answer(f"❌ Xatolik yuz berdi yoki havola yaroqsiz.")
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
+        except:
+            pass
+        await message.answer("❌ Kechirasiz, bu havoladan videoni yuklab bo'lmadi. Havola yopiq yoki yaroqsiz bo'lishi mumkin.")
 
 @dp.callback_query(F.data.startswith("audio_"))
 async def send_audio_callback(callback: types.CallbackQuery):
