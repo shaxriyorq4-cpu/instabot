@@ -8,7 +8,6 @@ from aiogram.filters import Command
 from aiogram.types import FSInputFile
 import yt_dlp
 
-
 TOKEN = "8915219066:AAGSCkzvFImev5HLBdOMqv-q8CWjraGnsHg"
 
 bot = Bot(token=TOKEN)
@@ -31,7 +30,6 @@ async def download_video(url: str, folder: str):
     """Cookiesiz, to'g'ridan-to'g'ri yuqori sifatli (HD) yuklab olish funksiyasi"""
     try:
         ydl_opts = {
-            # 1080p gacha bo'lgan eng yaxshi sifatli tayyor faylni olish
             'format': 'best[height<=1080]/best',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': False,
@@ -39,7 +37,6 @@ async def download_video(url: str, folder: str):
             'geo_bypass': True,
             'nocheckcertificate': True,
             'remote_components': ['ejs:github'],
-            # Cookies'ni butunlay olib tashlaymiz, shunda android client xato bermaydi
             'extractor_args': {
                 'youtube': {
                     'player_client': ['android', 'web']
@@ -69,6 +66,9 @@ async def download_video(url: str, folder: str):
 
 @dp.message()
 async def link_handler(message: types.Message):
+    if not message.text:
+        return
+        
     url = message.text.strip()
     
     if not url.startswith(("http://", "https://")) or ("youtube.com" not in url and "youtu.be" not in url):
@@ -85,7 +85,6 @@ async def link_handler(message: types.Message):
 
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
-            
             final_caption = "📥 YouTube videosi yuqori sifatda yuklab olindi ✅"
 
             await message.answer_video(
@@ -100,7 +99,7 @@ async def link_handler(message: types.Message):
                 pass
             print("✅ Video yuqori sifatda yuborildi!")
         else:
-            await status.edit_text("❌ Videoni yuklab bo'lmadi. Railway Logs ni tekshiring!")
+            await status.edit_text("❌ Videoni yuklab bo'lmadi. Logs ni tekshiring!")
 
     except Exception as e:
         print(f"Handler xatoligi: {e}")
