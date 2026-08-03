@@ -28,12 +28,11 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Yuqori sifatli (HD) videolarni yuklab olish funksiyasi"""
+    """Tez va yuqori sifatli (1080p gacha) yuklab olish funksiyasi"""
     try:
         ydl_opts = {
-            # ENG YUQORI SIFAT: Eng yaxshi video va audioni birlashtirib yuklaydi
-            'format': 'bestvideo+bestaudio/best',
-            'merge_output_format': 'mp4',
+            # Birlashtirib o'tirmasdan, tayyor eng yaxshi sifatli bitta faylni olish (tez va sifatli)
+            'format': 'best[height<=1080]/best',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': False,
             'no_warnings': False,
@@ -52,12 +51,7 @@ async def download_video(url: str, folder: str):
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-            base, _ = os.path.splitext(filename)
-            mp4_filename = base + '.mp4'
-            
-            if os.path.exists(mp4_filename):
-                return mp4_filename
-            elif os.path.exists(filename):
+            if os.path.exists(filename):
                 return filename
                 
             for f in os.listdir(folder):
@@ -92,7 +86,7 @@ async def link_handler(message: types.Message):
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
             
-            final_caption = "📥 YouTube videosi yuqori sifatda yuklab olindi ✅"
+            final_caption = "📥 YouTube videosi yuklab olindi ✅"
 
             await message.answer_video(
                 video=video_file, 
@@ -104,7 +98,7 @@ async def link_handler(message: types.Message):
                 await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
             except:
                 pass
-            print("✅ Video muvaffaqiyatli yuborildi!")
+            print("✅ Video tez va sifatli yuborildi!")
         else:
             cookie_status = "Bor ✅" if os.path.exists('cookies.txt') else "Yo'q ❌"
             await status.edit_text(
@@ -126,7 +120,7 @@ async def link_handler(message: types.Message):
 
 
 async def main():
-    print("🚀 YouTube Shorts HD bot ishga tushdi...")
+    print("🚀 YouTube tezkor HD bot ishga tushdi...")
     await dp.start_polling(bot)
 
 
