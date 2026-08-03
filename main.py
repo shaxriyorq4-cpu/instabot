@@ -27,13 +27,13 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Cookiesiz, to'g'ridan-to'g'ri yuqori sifatli (HD) yuklab olish funksiyasi"""
+    """Tezroq yuklab olish uchun optimallashtirilgan funksiya"""
     try:
         ydl_opts = {
-            'format': 'best[height<=1080]/best',
+            'format': 'best',  # Eng maqbul va tez yuklanadigan sifat
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
-            'quiet': False,
-            'no_warnings': False,
+            'quiet': True,     # Ortiqcha loglarni chiqarib vaqt yo'qotmaydi
+            'no_warnings': True,
             'geo_bypass': True,
             'nocheckcertificate': True,
             'remote_components': ['ejs:github'],
@@ -85,7 +85,7 @@ async def link_handler(message: types.Message):
 
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
-            final_caption = "📥 YouTube videosi yuqori sifatda yuklab olindi ✅"
+            final_caption = "📥 YouTube videosi tezkor rejimda yuklab olindi ✅"
 
             await message.answer_video(
                 video=video_file, 
@@ -97,7 +97,7 @@ async def link_handler(message: types.Message):
                 await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
             except:
                 pass
-            print("✅ Video yuqori sifatda yuborildi!")
+            print("✅ Video tezkor rejimda yuborildi!")
         else:
             await status.edit_text("❌ Videoni yuklab bo'lmadi. Logs ni tekshiring!")
 
@@ -114,7 +114,7 @@ async def link_handler(message: types.Message):
 
 
 async def main():
-    print("🚀 YouTube HD bot ishga tushdi...")
+    print("🚀 YouTube HD bot tezkor rejimda ishga tushdi...")
     await dp.start_polling(bot)
 
 
