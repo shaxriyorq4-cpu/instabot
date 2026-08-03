@@ -1,2 +1,2 @@
 [phases.setup]
-pkgs = ["ffmpeg", "python3", "nodejs"]
+pkgs = ["ffmpeg", "python3", "deno", "nodejs"]
