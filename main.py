@@ -28,10 +28,10 @@ async def start_handler(message: types.Message):
 
 
 async def download_video(url: str, folder: str):
-    """Cookie xatolarini chetlab o'tib, yuqori sifatli videoni tez yuklash"""
+    """Cookiesiz, to'g'ridan-to'g'ri yuqori sifatli (HD) yuklab olish funksiyasi"""
     try:
         ydl_opts = {
-            # Yuqori sifatli tayyor bitta faylni olish (GVS PO token xatosiga uchramaslik uchun)
+            # 1080p gacha bo'lgan eng yaxshi sifatli tayyor faylni olish
             'format': 'best[height<=1080]/best',
             'outtmpl': os.path.join(folder, '%(id)s.%(ext)s'),
             'quiet': False,
@@ -39,11 +39,9 @@ async def download_video(url: str, folder: str):
             'geo_bypass': True,
             'nocheckcertificate': True,
             'remote_components': ['ejs:github'],
-            # Agar cookies eskirgan bo'lsa xato bermasligi uchun uni shartli qo'shamiz
-            'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
+            # Cookies'ni butunlay olib tashlaymiz, shunda android client xato bermaydi
             'extractor_args': {
                 'youtube': {
-                    # PO token talab qiladigan muammoli mijozlarni olib tashlaymiz
                     'player_client': ['android', 'web']
                 }
             }
@@ -88,7 +86,7 @@ async def link_handler(message: types.Message):
         if video_path and os.path.exists(video_path):
             video_file = FSInputFile(video_path)
             
-            final_caption = "📥 YouTube videosi yuklab olindi ✅"
+            final_caption = "📥 YouTube videosi yuqori sifatda yuklab olindi ✅"
 
             await message.answer_video(
                 video=video_file, 
@@ -100,7 +98,7 @@ async def link_handler(message: types.Message):
                 await bot.delete_message(chat_id=message.chat.id, message_id=status.message_id)
             except:
                 pass
-            print("✅ Video muvaffaqiyatli yuborildi!")
+            print("✅ Video yuqori sifatda yuborildi!")
         else:
             await status.edit_text("❌ Videoni yuklab bo'lmadi. Railway Logs ni tekshiring!")
 
@@ -117,7 +115,7 @@ async def link_handler(message: types.Message):
 
 
 async def main():
-    print("🚀 YouTube tezkor bot ishga tushdi...")
+    print("🚀 YouTube HD bot ishga tushdi...")
     await dp.start_polling(bot)
 
 
