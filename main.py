@@ -18,7 +18,7 @@ if not os.path.exists(DOWNLOAD_DIR):
 async def start_cmd(message: types.Message):
     await message.answer(
         "Salom! 👋\n"
-        "Menga Instagram post (karusel yoki rasm) havolasini yuboring, men rasmlarini yuklab beraman."
+        "Menga Instagram havolasini yuboring."
     )
 
 @dp.message(F.text & ~F.text.startswith("/"))
@@ -34,7 +34,7 @@ async def download_photos(message: types.Message):
     ydl_opts = {
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
         'noplaylist': False,
-        'quiet': True,
+        'quiet': False, # Xatoliklarni aniq ko'rish uchun True dan False ga o'zgartirildi
         'ignoreerrors': True,
     }
     if os.path.exists('cookies.txt'):
@@ -43,6 +43,7 @@ async def download_photos(message: types.Message):
     try:
         def extract_info():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                print(f"[LOG] Havola tekshirilmoqda: {url}")
                 info = ydl.extract_info(url, download=True)
                 return info
 
@@ -50,14 +51,18 @@ async def download_photos(message: types.Message):
         info = await loop.run_in_executor(None, extract_info)
 
         if not info:
+            print("[XATO] yt-dlp ma'lumot qaytarmadi (info bo'sh).")
             raise Exception("Ma'lumot topilmadi")
 
         base_id = info.get('id', 'media')
+        print(f"[LOG] Yuklab olish muvaffaqiyatli yakunlandi. Media ID: {base_id}")
 
         downloaded_files = []
         for f in os.listdir(DOWNLOAD_DIR):
             if f.startswith(str(base_id)):
                 downloaded_files.append(os.path.join(DOWNLOAD_DIR, f))
+
+        print(f"[LOG] Topilgan fayllar: {downloaded_files}")
 
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
@@ -66,7 +71,7 @@ async def download_photos(message: types.Message):
 
         media_photos = []
         for file_path in downloaded_files:
-            if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+            if file_path.endswith(('.jpg', '.jpeg', '.png', '.webp', '.mp4', '.mov', '.mkv')):
                 media_photos.append(InputMediaPhoto(media=FSInputFile(file_path)))
 
         if len(media_photos) > 1:
@@ -74,7 +79,8 @@ async def download_photos(message: types.Message):
         elif len(media_photos) == 1:
             await message.answer_photo(photo=FSInputFile(downloaded_files[0]))
         else:
-            await message.answer("❌ Bu havoladan mos formatdagi rasm topilmadi.")
+            print("[XATO] Katalogdan mos keladigan media fayl topilmadi.")
+            await message.answer("❌ Bu havoladan mos formatdagi fayl topilmadi.")
 
         for file_path in downloaded_files:
             try:
@@ -83,14 +89,19 @@ async def download_photos(message: types.Message):
                 pass
 
     except Exception as e:
+        # ANIQ SABABNI KONSOLGA VA FOYDALANUVCHIGA CHIQARISH
+        error_text = str(e)
+        print(f"[ANIQ XATO YUZ BERDI]: {error_text}")
+        
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         except:
             pass
-        await message.answer("❌ Xatolik yuz berdi. Havola yopiq, o'chirilgan yoki yaroqsiz bo'lishi mumkin.")
+            
+        await message.answer(f"❌ Xatolik yuz berdi:\n<code>{error_text}</code>", parse_mode="HTML")
 
 async def main():
-    print("Bot ishga tushdi...")
+    print("Bot ishga tushdi va ulanishlar tozalanmoqda...")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot, handle_signals=False)
 
