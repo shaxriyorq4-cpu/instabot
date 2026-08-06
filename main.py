@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import FSInputFile, InputMediaPhoto
 import yt_dlp
 
-TOKEN = "8798843673:AAHUPeLpIZgtWLSl05GPs1HJmnpXuLdMHGc"
+TOKEN = "8798843673:AAFdeyh7VfBfcJXNnAQUMCfZ-GcpnNhwfho"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -92,7 +92,7 @@ async def download_photos(message: types.Message):
 async def main():
     print("Bot ishga tushdi...")
     await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, handle_signals=False)
 
 if __name__ == "__main__":
     asyncio.run(main())
