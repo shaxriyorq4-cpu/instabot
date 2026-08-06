@@ -18,7 +18,7 @@ if not os.path.exists(DOWNLOAD_DIR):
 async def start_cmd(message: types.Message):
     await message.answer(
         "Salom! 👋\n"
-        "Menga Instagram post (karusel) havolasini yuboring, men faqat rasmlarini yuklab beraman."
+        "Menga Instagram post (karusel yoki rasm) havolasini yuboring, men faqat rasmlarini yuklab beraman."
     )
 
 @dp.message(F.text & ~F.text.startswith("/"))
@@ -33,7 +33,6 @@ async def download_photos(message: types.Message):
 
     ydl_opts = {
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
-        'format': 'best/bestvideo',
         'noplaylist': False,
         'quiet': True,
         'ignoreerrors': True,
@@ -75,7 +74,7 @@ async def download_photos(message: types.Message):
         elif len(media_photos) == 1:
             await message.answer_photo(photo=FSInputFile(downloaded_files[0]))
         else:
-            await message.answer("❌ Bu havoladan faqat rasm topib bo'lmadi.")
+            await message.answer("❌ Bu havoladan rasm topib bo'lmadi.")
 
         for file_path in downloaded_files:
             try:
