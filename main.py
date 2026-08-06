@@ -18,7 +18,7 @@ if not os.path.exists(DOWNLOAD_DIR):
 async def start_cmd(message: types.Message):
     await message.answer(
         "Salom! 👋\n"
-        "Menga Instagram post (karusel yoki rasm) havolasini yuboring, men faqat rasmlarini yuklab beraman."
+        "Menga Instagram post (karusel yoki rasm) havolasini yuboring, men rasmlarini yuklab beraman."
     )
 
 @dp.message(F.text & ~F.text.startswith("/"))
@@ -29,13 +29,15 @@ async def download_photos(message: types.Message):
         await message.answer("❌ Iltimos, faqat Instagram havolasini yuboring.")
         return
 
-    processing_msg = await message.answer("⏳ Rasmlar yuklab olinmoqda, biroz kuting...")
+    processing_msg = await message.answer("⏳ Ma'lumotlar yuklab olinmoqda, biroz kuting...")
 
+    # yt-dlp ni rasm va videolar uchun umumiy sozlash
     ydl_opts = {
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
         'noplaylist': False,
         'quiet': True,
         'ignoreerrors': True,
+        'writethumbnail': False,
     }
     if os.path.exists('cookies.txt'):
         ydl_opts['cookiefile'] = 'cookies.txt'
@@ -74,7 +76,7 @@ async def download_photos(message: types.Message):
         elif len(media_photos) == 1:
             await message.answer_photo(photo=FSInputFile(downloaded_files[0]))
         else:
-            await message.answer("❌ Bu havoladan rasm topib bo'lmadi.")
+            await message.answer("❌ Bu havoladan mos formatdagi rasm topilmadi.")
 
         for file_path in downloaded_files:
             try:
@@ -87,10 +89,12 @@ async def download_photos(message: types.Message):
             await bot.delete_message(chat_id=message.chat.id, message_id=processing_msg.message_id)
         except:
             pass
-        await message.answer("❌ Xatolik yuz berdi. Havola yopiq yoki yaroqsiz bo'lishi mumkin.")
+        await message.answer("❌ Xatolik yuz berdi. Havola yopiq, o'chirilgan yoki yaroqsiz bo'lishi mumkin.")
 
 async def main():
     print("Bot ishga tushdi...")
+    # Eski ulanishlarni tozalash uchun oldingi getUpdates ni tashlab yuborish
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
