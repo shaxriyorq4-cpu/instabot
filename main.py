@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import FSInputFile, InputMediaPhoto
 import yt_dlp
 
-TOKEN = "8763107587:AAEK33xTw8yoexp7zCG0aNphcHiDUKECMks"
+TOKEN = "8763107587:AAFdeyh7VfBfcJXNnAQUMCfZ-GcpnNhwfho"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -31,13 +31,11 @@ async def download_photos(message: types.Message):
 
     processing_msg = await message.answer("⏳ Ma'lumotlar yuklab olinmoqda, biroz kuting...")
 
-    # yt-dlp ni rasm va videolar uchun umumiy sozlash
     ydl_opts = {
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
         'noplaylist': False,
         'quiet': True,
         'ignoreerrors': True,
-        'writethumbnail': False,
     }
     if os.path.exists('cookies.txt'):
         ydl_opts['cookiefile'] = 'cookies.txt'
@@ -93,7 +91,6 @@ async def download_photos(message: types.Message):
 
 async def main():
     print("Bot ishga tushdi...")
-    # Eski ulanishlarni tozalash uchun oldingi getUpdates ni tashlab yuborish
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
