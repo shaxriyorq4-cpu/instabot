@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import FSInputFile, InputMediaPhoto
 import yt_dlp
 
-TOKEN = "8763107587:AAFdeyh7VfBfcJXNnAQUMCfZ-GcpnNhwfho"
+TOKEN = "8798843673:AAHUPeLpIZgtWLSl05GPs1HJmnpXuLdMHGc"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
