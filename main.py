@@ -16,18 +16,18 @@ if not os.path.exists(DOWNLOAD_DIR):
 
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message):
-    await message.answer("Salom! Menga Instagram post yoki karusel havolasini yuboring, men ularni yuklab beraman.")
+    await message.answer("Salom! Menga faqat Instagram rasm yoki karusel havolasini yuboring.")
 
 @dp.message(F.text.contains("instagram.com"))
-async def download_insta(message: types.Message):
+async def download_insta_photos(message: types.Message):
     url = message.text.split("?")[0]
-    msg = await message.answer("⏳ Yuklanmoqda...")
+    msg = await message.answer("⏳ Rasmlar yuklanmoqda...")
 
+    # Faqat rasmlarni tortib olish uchun sozlama
     ydl_opts = {
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
         'quiet': True,
-        'format': 'best/bestvideo+bestaudio',
-        'ignoreerrors': True, # Xatolikka uchragan qismlarini tashlab o'tib ketish uchun
+        'skip_download': False,
     }
     
     if os.path.exists('cookies.txt'):
@@ -46,23 +46,19 @@ async def download_insta(message: types.Message):
 
         base_id = info.get('id', 'media')
         
+        # Faqat rasm fayllarini yig'ish
         media_photos = []
-        video_file = None
-
         for f in os.listdir(DOWNLOAD_DIR):
             if f.startswith(str(base_id)):
                 file_path = os.path.join(DOWNLOAD_DIR, f)
                 if f.endswith(('.jpg', '.jpeg', '.png', '.webp')):
                     media_photos.append(InputMediaPhoto(media=FSInputFile(file_path)))
-                elif f.endswith(('.mp4', '.mov', '.mkv', '.webm')):
-                    video_file = file_path
 
         if media_photos:
+            # Telegram bir vaqtning o'zida 10 tagacha rasmni karusel qilib yuboradi
             await message.answer_media_group(media=media_photos[:10])
-        elif video_file:
-            await message.answer_video(video=FSInputFile(video_file))
         else:
-            await message.answer("❌ Kontent topilmadi yoki havola yopiq.")
+            await message.answer("❌ Bu havolada rasm topilmadi yoki post faqat videodan iborat.")
 
         # Fayllarni tozalash
         for f in os.listdir(DOWNLOAD_DIR):
@@ -82,7 +78,7 @@ async def download_insta(message: types.Message):
             await bot.delete_message(message.chat.id, msg.message_id)
         except:
             pass
-        await message.answer(f"❌ Xatolik yuz berdi: {str(e)}")
+        await message.answer("❌ Xatolik yuz berdi. Havola faqat ochiq rasm postiga tegishli ekanligini tekshiring.")
 
 async def main():
     await bot.delete_webhook(drop_pending_updates=True)
