@@ -20,17 +20,16 @@ async def start_cmd(message: types.Message):
 
 @dp.message(F.text.contains("instagram.com"))
 async def download_insta(message: types.Message):
-    url = message.text.split("?")[0]  # Havolani tozalash
+    url = message.text.split("?")[0]
     msg = await message.answer("⏳ Yuklanmoqda...")
 
-    # yt-dlp sozlamalari
     ydl_opts = {
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
         'quiet': True,
-        'format': 'best',
+        'format': 'best/bestvideo+bestaudio',
+        'ignoreerrors': True, # Xatolikka uchragan qismlarini tashlab o'tib ketish uchun
     }
     
-    # Agar cookies.txt fayli yuklangan bo'lsa, undan foydalanamiz (bloklanishning oldini oladi)
     if os.path.exists('cookies.txt'):
         ydl_opts['cookiefile'] = 'cookies.txt'
 
@@ -45,9 +44,8 @@ async def download_insta(message: types.Message):
         if not info:
             raise Exception("Ma'lumot topilmadi.")
 
-        base_id = info.get('id')
+        base_id = info.get('id', 'media')
         
-        # Yuklangan fayllarni yig'ish (rasmlar va videolar)
         media_photos = []
         video_file = None
 
@@ -56,19 +54,17 @@ async def download_insta(message: types.Message):
                 file_path = os.path.join(DOWNLOAD_DIR, f)
                 if f.endswith(('.jpg', '.jpeg', '.png', '.webp')):
                     media_photos.append(InputMediaPhoto(media=FSInputFile(file_path)))
-                elif f.endswith(('.mp4', '.mov', '.mkv')):
+                elif f.endswith(('.mp4', '.mov', '.mkv', '.webm')):
                     video_file = file_path
 
-        # Agar karusel rasmlar bo'lsa
         if media_photos:
             await message.answer_media_group(media=media_photos[:10])
-        # Agar video bo'lsa
         elif video_file:
             await message.answer_video(video=FSInputFile(video_file))
         else:
             await message.answer("❌ Kontent topilmadi yoki havola yopiq.")
 
-        # Vaqtinchalik fayllarni o'chirish
+        # Fayllarni tozalash
         for f in os.listdir(DOWNLOAD_DIR):
             if f.startswith(str(base_id)):
                 try:
@@ -76,7 +72,10 @@ async def download_insta(message: types.Message):
                 except:
                     pass
         
-        await bot.delete_message(message.chat.id, msg.message_id)
+        try:
+            await bot.delete_message(message.chat.id, msg.message_id)
+        except:
+            pass
 
     except Exception as e:
         try:
