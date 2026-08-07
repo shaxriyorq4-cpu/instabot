@@ -16,18 +16,17 @@ if not os.path.exists(DOWNLOAD_DIR):
 
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message):
-    await message.answer("Salom! Menga faqat Instagram rasm yoki karusel havolasini yuboring.")
+    await message.answer("Salom! Menga Instagram rasm yoki karusel havolasini yuboring.")
 
 @dp.message(F.text.contains("instagram.com"))
 async def download_insta_photos(message: types.Message):
     url = message.text.split("?")[0]
     msg = await message.answer("⏳ Rasmlar yuklanmoqda...")
 
-    # Faqat rasmlarni tortib olish uchun sozlama
     ydl_opts = {
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s_%(autonumber)s.%(ext)s'),
         'quiet': True,
-        'skip_download': False,
+        'extract_flat': True, # Videolarni emas, faqat havoladagi elementlarni yig'ish uchun
     }
     
     if os.path.exists('cookies.txt'):
@@ -46,7 +45,6 @@ async def download_insta_photos(message: types.Message):
 
         base_id = info.get('id', 'media')
         
-        # Faqat rasm fayllarini yig'ish
         media_photos = []
         for f in os.listdir(DOWNLOAD_DIR):
             if f.startswith(str(base_id)):
@@ -55,12 +53,10 @@ async def download_insta_photos(message: types.Message):
                     media_photos.append(InputMediaPhoto(media=FSInputFile(file_path)))
 
         if media_photos:
-            # Telegram bir vaqtning o'zida 10 tagacha rasmni karusel qilib yuboradi
             await message.answer_media_group(media=media_photos[:10])
         else:
-            await message.answer("❌ Bu havolada rasm topilmadi yoki post faqat videodan iborat.")
+            await message.answer("❌ Bu havoladan rasm topib bo'lmadi.")
 
-        # Fayllarni tozalash
         for f in os.listdir(DOWNLOAD_DIR):
             if f.startswith(str(base_id)):
                 try:
@@ -78,7 +74,7 @@ async def download_insta_photos(message: types.Message):
             await bot.delete_message(message.chat.id, msg.message_id)
         except:
             pass
-        await message.answer("❌ Xatolik yuz berdi. Havola faqat ochiq rasm postiga tegishli ekanligini tekshiring.")
+        await message.answer("❌ Xatolik yuz berdi. Iltimos boshqa havola yuborib ko'ring.")
 
 async def main():
     await bot.delete_webhook(drop_pending_updates=True)
